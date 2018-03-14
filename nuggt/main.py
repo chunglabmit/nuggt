@@ -70,6 +70,9 @@ def main():
     parser.add_argument("--min-distance",
                         help="Minimum distance between two annotations",
                         type=int, default=10)
+    parser.add_argument("--segmentation",
+                        help="Path to existing segmentation file (optional)",
+                        default="")
     args = parser.parse_args()
 
     if os.path.exists(args.output):
@@ -86,6 +89,10 @@ def main():
         s.voxel_size = [1000, 1000, 1000]
         s.layers["image"] = neuroglancer.ImageLayer(
             source=neuroglancer.LocalVolume(img, voxel_size=s.voxel_size))
+        if os.path.exists(args.segmentation):
+            seg = tifffile.imread(args.segmentation).astype(np.uint32)
+            s.layers["segmentation"] = neuroglancer.SegmentationLayer(
+                source=neuroglancer.LocalVolume(seg, voxel_size=s.voxel_size))
         s.layers["annotation"] = \
             neuroglancer.PointAnnotationLayer(points=points)
     save_fn = lambda s: save(viewer, args.output)
