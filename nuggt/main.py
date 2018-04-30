@@ -59,14 +59,20 @@ def save(viewer, output):
         if os.path.exists(output+".old"):
             os.remove(output+".old")
         os.rename(output, output+".old")
-    json.dump(points, open(output, "w"))
+    json.dump(points, open(output, "w"), indent=2)
+    say("Saved annotations to %s" % output, "save")
 
 def main():
     global viewer
     parser = argparse.ArgumentParser(description="NeUroGlancer Ground Truth")
-    parser.add_argument("--port", type=int, help="HTTP port for server", default=0)
+    parser.add_argument("--port", type=int, help="HTTP port for server",
+                        default=0)
     parser.add_argument("--image", help="Path to image file", required=True)
-    parser.add_argument("--output", help="Path to list of point annotations", required=True)
+    parser.add_argument("--output", help="Path to list of point annotations",
+                        required=True)
+    parser.add_argument(
+        "--detected", help="Path to list of detected point annotations",
+        required=False)
     parser.add_argument("--min-distance",
                         help="Minimum distance between two annotations",
                         type=int, default=10)
@@ -80,9 +86,18 @@ def main():
     else:
         points = []
 
-    neuroglancer.set_server_bind_address(bind_port=args.port)
+    if args.detected:
+        detected_points = np.array(json.load(open(args.detected)), np.float32)
+    else:
+        detected_points = None
+
+    neuroglancer.set_server_bind_address("127.0.0.1", bind_port=args.port)
 
     img = tifffile.imread(args.image)
+    img = img.astype(np.float32) / img.max()
+    #if np.max(img) > 255:
+    #    img = img.astype(np.uint32) * 255 / np.max(img)
+    #img = img.astype(np.uint8)
 
     viewer = neuroglancer.Viewer()
     with viewer.txn() as s:
@@ -95,6 +110,9 @@ def main():
                 source=neuroglancer.LocalVolume(seg, voxel_size=s.voxel_size))
         s.layers["annotation"] = \
             neuroglancer.PointAnnotationLayer(points=points)
+        if detected_points is not None:
+            s.layers["detected"] = \
+                neuroglancer.PointAnnotationLayer(points=detected_points)
     save_fn = lambda s: save(viewer, args.output)
     annotate_fn = lambda s:action_handler(viewer, s, args.min_distance)
     delete_fn = lambda s:delete_handler(s, args.min_distance)

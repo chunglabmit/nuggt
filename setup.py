@@ -14,12 +14,14 @@ setup(
     install_requires=[
         "numpy",
         "neuroglancer",
+        "scipy",
         "tifffile"
     ],
     author="Kwanghun Chung Lab",
-    packages=["nuggt"],
+    packages=["nuggt", "nuggt.utils"],
     entry_points={ 'console_scripts': [
-        'nuggt=nuggt.main:main'
+        'nuggt=nuggt.main:main',
+        'nuggt-align=nuggt.align:main'
     ]},
     url="https://github.com/chunglabmit/nuggt",
     license="MIT",
