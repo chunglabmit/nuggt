@@ -47,6 +47,14 @@ def parse_args():
                         type=int,
                         default=None,
                         help="Port # for http. Default = let program choose")
+    parser.add_argument("--reference-voxel-size",
+                        help="X, Y and Z size of voxels, separated by "
+                        "commas, e.g. \"1.6,1.6,1.0\"",
+                        default="1.0,1.0,1.0")
+    parser.add_argument("--moving-voxel-size",
+                        help="X, Y and Z size of voxels, separated by "
+                        "commas, e.g. \"1.6,1.6,1.0\"",
+                        default="1.0,1.0,1.0")
     return parser.parse_args()
 
 
@@ -105,12 +113,16 @@ void main() {
 }
 """
 
-    def __init__(self, reference_image, moving_image, points_file):
+    def __init__(self, reference_image, moving_image, points_file,
+                 reference_voxel_size, moving_voxel_size):
         """Constructor
 
         :param reference_image: align to this image
         :param moving_image: align this image
         :param points_file: where to load and store points
+        :param reference_voxel_size: a 3-tuple giving the X, Y and Z voxel
+        size in nanometers.
+        :param moving_voxel_size: the voxel size for the moving image
         """
         self.reference_image = reference_image
         self.moving_image = moving_image
@@ -120,6 +132,8 @@ void main() {
         self.reference_viewer = neuroglancer.Viewer()
         self.moving_viewer = neuroglancer.Viewer()
         self.points_file = points_file
+        self.reference_voxel_size = reference_voxel_size
+        self.moving_voxel_size = moving_voxel_size
         self.load_points()
         self.init_state()
 
@@ -160,12 +174,17 @@ void main() {
     def init_reference_state(self):
         """Initialize the state of the reference viewer"""
         with self.reference_viewer.txn() as s:
+            s.voxel_size = self.reference_voxel_size
             s.layers[self.REFERENCE] = neuroglancer.ImageLayer(
-                source=neuroglancer.LocalVolume(self.reference_image),
+                source=neuroglancer.LocalVolume(
+                    self.reference_image,
+                    voxel_size=s.voxel_size),
                 shader=self.REFERENCE_SHADER
             )
             s.layers[self.ALIGNMENT] = neuroglancer.ImageLayer(
-                source=neuroglancer.LocalVolume(self.alignment_image),
+                source=neuroglancer.LocalVolume(
+                    self.alignment_image,
+                    voxel_size=s.voxel_size),
                 shader = self.ALIGNMENT_SHADER
             )
             s.layers[self.CORRESPONDENCE_POINTS] = \
@@ -197,8 +216,11 @@ void main() {
     def init_moving_state(self):
         """Initialize the state of the moving viewer"""
         with self.moving_viewer.txn() as s:
+            s.voxel_size = self.moving_voxel_size
             s.layers[self.IMAGE] = neuroglancer.ImageLayer(
-                source=neuroglancer.LocalVolume(self.moving_image),
+                source=neuroglancer.LocalVolume(
+                    self.moving_image,
+                    voxel_size=s.voxel_size),
                 shader=self.IMAGE_SHADER
             )
             s.layers[self.CORRESPONDENCE_POINTS] = \
@@ -402,11 +424,16 @@ def main():
             bind_address=args.ip_address)
     elif args.port is not None:
         neuroglancer.set_server_bind_address(bind_port=args.port)
+    reference_voxel_size = \
+        [float(_)*1000 for _ in args.reference_voxel_size.split(",")]
+    moving_voxel_size = \
+        [float(_)*1000 for _ in args.moving_voxel_size.split(",")]
     logging.info("Reading reference image")
     reference_image = normalize_image(tifffile.imread(args.reference_image))
     logging.info("Reading moving image")
     moving_image = normalize_image(tifffile.imread(args.moving_image))
-    vp = ViewerPair(reference_image, moving_image, args.points)
+    vp = ViewerPair(reference_image, moving_image, args.points,
+                    reference_voxel_size, moving_voxel_size)
     if not args.no_launch:
         vp.launch_viewers()
     vp.print_viewers()
