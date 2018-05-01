@@ -40,6 +40,13 @@ def parse_args():
                         help="Don't launch browsers on startup",
                         default="false",
                         action="store_true")
+    parser.add_argument("--ip-address",
+                        help="IP address interface to use for http",
+                        default=None)
+    parser.add_argument("--port",
+                        type=int,
+                        default=None,
+                        help="Port # for http. Default = let program choose")
     return parser.parse_args()
 
 
@@ -386,6 +393,15 @@ def normalize_image(img):
 def main():
     logging.basicConfig(level=logging.INFO)
     args = parse_args()
+    if args.ip_address is not None and args.port is not None:
+        neuroglancer.set_server_bind_address(
+            bind_address=args.ip_address,
+            bind_port=args.port)
+    elif args.ip_address is not None:
+        neuroglancer.set_server_bind_address(
+            bind_address=args.ip_address)
+    elif args.port is not None:
+        neuroglancer.set_server_bind_address(bind_port=args.port)
     logging.info("Reading reference image")
     reference_image = normalize_image(tifffile.imread(args.reference_image))
     logging.info("Reading moving image")
