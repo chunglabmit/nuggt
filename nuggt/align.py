@@ -4,6 +4,7 @@
 """
 
 import argparse
+from copy import deepcopy
 import logging
 import json
 import neuroglancer
@@ -318,9 +319,20 @@ void main() {
                 self.moving_pts = [_[::-1].tolist() for _ in points]
 
     def on_warp(self, s):
-        with self.reference_viewer.config_state.txn() as txn:
-            txn.status_messages[self.WARP_ACTION] = \
-                "Warping alignment image to reference... (patience please)"
+        cs, generation = \
+            self.reference_viewer.config_state.state_and_generation
+        cs = deepcopy(cs)
+
+        cs.status_messages[self.WARP_ACTION] = \
+            "Warping alignment image to reference... (patience please)"
+        self.reference_viewer.config_state.set_state(
+             cs, existing_generation=generation)
+        ioloop = neuroglancer.server.global_server.ioloop
+        cb = ioloop._callbacks.pop()
+        try:
+            ioloop._run_callback(cb)
+        except:
+            ioloop._callbacks.push(cb)
         try:
             self.capture_points()
             self.align_image()
