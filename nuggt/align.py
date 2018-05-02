@@ -366,17 +366,21 @@ void main() {
             self.capture_points()
             self.align_image()
             with self.reference_viewer.txn() as txn:
+                txn.voxel_size = self.reference_voxel_size
                 txn.layers[self.ALIGNMENT] = neuroglancer.ImageLayer(
-                    source=neuroglancer.LocalVolume(self.alignment_image),
+                    source=neuroglancer.LocalVolume(
+                        self.alignment_image,
+                        voxel_size=txn.voxel_size),
                     shader=self.ALIGNMENT_SHADER
                 )
             with self.reference_viewer.config_state.txn() as txn:
                 txn.status_messages[self.WARP_ACTION] = \
                     "Warping complete, thank you for your patience."
         except:
-            txn.status_messages[self.WARP_ACTION] = \
-                "Oh my, something went wrong. See console log for details."
-            raise
+            with self.reference_viewer.config_state.txn() as txn:
+                txn.status_messages[self.WARP_ACTION] = \
+                    "Oh my, something went wrong. See console log for details."
+                raise
 
     def align_image(self):
         """Warp the moving image into the reference image's space"""
