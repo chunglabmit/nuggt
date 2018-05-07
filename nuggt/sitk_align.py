@@ -175,7 +175,8 @@ def main():
             points = json.load(fd)
         out_points = transform(points, moving_image, transform_pm)
         with open(alignment_point_file, "w") as fd:
-            json.dump(out_points, fd, indent=2)
+            json.dump(dict(reference=points,
+                           moving=out_points), fd, indent=2)
 
 if __name__=="__main__":
     main()
