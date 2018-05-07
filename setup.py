@@ -21,7 +21,8 @@ setup(
     packages=["nuggt", "nuggt.utils"],
     entry_points={ 'console_scripts': [
         'nuggt=nuggt.main:main',
-        'nuggt-align=nuggt.align:main'
+        'nuggt-align=nuggt.align:main',
+        'sitk-align=nuggt.sitk_align:main'
     ]},
     url="https://github.com/chunglabmit/nuggt",
     license="MIT",
