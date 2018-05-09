@@ -15,7 +15,8 @@ setup(
         "numpy",
         "neuroglancer",
         "scipy",
-        "tifffile"
+        "tifffile",
+        "tqdm"
     ],
     author="Kwanghun Chung Lab",
     packages=["nuggt", "nuggt.utils"],

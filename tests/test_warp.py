@@ -61,7 +61,7 @@ class TestWarp(unittest.TestCase):
             np.column_stack([ii.flatten(), jj.flatten(), kk.flatten()]))
         warper = warper.approximate(*[np.arange(0, 10, 2)] * 3)
         r = np.random.RandomState(1234)
-        iin, jin, kin = [r.uniform(0, 8, 10) for _ in range(3)]
+        iin, jin, kin = [r.randint(0, 8, 10) + .5 for _ in range(3)]
         result = warper(np.column_stack([iin, jin, kin]))
         for iiin, jjin, kkin, (iout, jout, kout) in zip(iin, jin, kin, result):
             floor_i = int(np.floor(iiin))

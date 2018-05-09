@@ -7,6 +7,7 @@ import argparse
 from copy import deepcopy
 import logging
 import json
+import multiprocessing
 import neuroglancer
 import numpy as np
 import os
@@ -33,6 +34,9 @@ def parse_args():
     parser.add_argument("--moving-image",
                         help="Path to image file for image to be aligned",
                         required=True)
+    parser.add_argument("--segmentation",
+                        help="Path to the segmentation file accompanying "
+                        "the reference image.")
     parser.add_argument("--points",
                         help="Path to point-correspondence file",
                         required=True)
@@ -89,6 +93,7 @@ class ViewerPair:
     EDIT_ACTION = "edit"
     NEXT_ACTION = "next"
     PREVIOUS_ACTION = "previous"
+    REFRESH_ACTION = "refresh-view"
     REDO_ACTION = "redo"
     SAVE_ACTION = "save-points"
     TRANSLATE_ACTION = "translate-point"
@@ -100,6 +105,7 @@ class ViewerPair:
     EDIT_KEY = "shift+keye"
     NEXT_KEY = "shift+keyn"
     PREVIOUS_KEY = "shift+keyp"
+    REFRESH_KEY = "shift+keyr"
     SAVE_KEY = "shift+keys"
     REDO_KEY = "control+keyy"
     TRANSLATE_KEY = "shift+keyt"
@@ -116,8 +122,7 @@ void main() {
 
     ALIGNMENT_SHADER = """
 void main() {
-  emitRGB(vec3(toNormalized(getDataValue()), 0, 
-               toNormalized(getDataValue())));
+  emitGrayscale(toNormalized(getDataValue()));
 }
         """
 
@@ -126,6 +131,13 @@ void main() {
   emitGrayscale(toNormalized(getDataValue()));
 }
 """
+    #
+    # For multiprocessing - dictionaries keyed on id(self)
+    #
+    moving_images = {}
+    alignment_raw = {}
+    warpers = {}
+    alignment_buffers = {}
 
     def __init__(self, reference_image, moving_image, points_file,
                  reference_voxel_size, moving_voxel_size):
@@ -140,9 +152,12 @@ void main() {
         """
         self.reference_image = reference_image
         self.moving_image = moving_image
+        self.moving_images[id(self)] = moving_image
         self.decimation = max(1, np.min(reference_image.shape) // 5)
-        self.alignment_image = np.zeros(self.reference_image.shape,
-                                        np.float32)
+        n_elems = int(np.prod(self.reference_image.shape))
+        alignment_raw = multiprocessing.RawArray(
+            'f', n_elems)
+        self.alignment_raw[id(self)] = alignment_raw
         self.reference_viewer = neuroglancer.Viewer()
         self.moving_viewer = neuroglancer.Viewer()
         self.points_file = points_file
@@ -151,6 +166,14 @@ void main() {
         self.moving_voxel_size = moving_voxel_size
         self.load_points()
         self.init_state()
+
+    @property
+    def alignment_image(self):
+        alignment_raw = self.alignment_raw[id(self)]
+        n_elems = np.prod(self.reference_image.shape)
+        return np.frombuffer(
+            alignment_raw, np.float32, count=n_elems)\
+            .reshape(self.reference_image.shape)
 
     def load_points(self):
         """Load reference/moving points from the points file"""
@@ -173,11 +196,13 @@ void main() {
 
     def init_state(self):
         """Initialize each of the viewers' states"""
-        self.init_reference_state()
-        self.init_moving_state()
+        self.init_actions(self.reference_viewer,
+                          self.on_reference_annotate)
+        self.init_actions(self.moving_viewer, self.on_moving_annotate)
         self.undo_stack = []
         self.redo_stack = []
         self.selection_index = len(self.reference_pts)
+        self.refresh()
         self.update_after_edit()
 
     @property
@@ -189,25 +214,6 @@ void main() {
     def annotation_moving_pts(self):
         """Moving points in x, y, z order"""
         return [_[::-1] for _ in self.moving_pts]
-
-    def init_reference_state(self):
-        """Initialize the state of the reference viewer"""
-        with self.reference_viewer.txn() as s:
-            s.voxel_size = self.reference_voxel_size
-            s.layers[self.REFERENCE] = neuroglancer.ImageLayer(
-                source=neuroglancer.LocalVolume(
-                    self.reference_image,
-                    voxel_size=s.voxel_size),
-                shader=self.REFERENCE_SHADER
-            )
-            s.layers[self.ALIGNMENT] = neuroglancer.ImageLayer(
-                source=neuroglancer.LocalVolume(
-                    self.alignment_image,
-                    voxel_size=s.voxel_size),
-                shader = self.ALIGNMENT_SHADER
-            )
-        self.init_actions(self.reference_viewer,
-                          self.on_reference_annotate)
 
     def init_actions(self, viewer, on_annotate):
         """Initialize the actions for a viewer
@@ -221,6 +227,7 @@ void main() {
         viewer.actions.add(self.EDIT_ACTION, self.on_edit)
         viewer.actions.add(self.NEXT_ACTION, self.on_next)
         viewer.actions.add(self.PREVIOUS_ACTION, self.on_previous)
+        viewer.actions.add(self.REFRESH_ACTION, self.on_refresh)
         viewer.actions.add(self.SAVE_ACTION, self.on_save)
         viewer.actions.add(self.REDO_ACTION, self.on_redo)
         viewer.actions.add(self.UNDO_ACTION, self.on_undo)
@@ -237,24 +244,13 @@ void main() {
             bindings_viewer[self.EDIT_KEY] = self.EDIT_ACTION
             bindings_viewer[self.NEXT_KEY] = self.NEXT_ACTION
             bindings_viewer[self.PREVIOUS_KEY] = self.PREVIOUS_ACTION
+            bindings_viewer[self.REFRESH_KEY] = self.REFRESH_ACTION
             bindings_viewer[self.SAVE_KEY] = self.SAVE_ACTION
             bindings_viewer[self.REDO_KEY] = self.REDO_ACTION
             bindings_viewer[self.UNDO_KEY] = self.UNDO_ACTION
             bindings_viewer[self.WARP_KEY] = self.WARP_ACTION
             if viewer == self.reference_viewer:
                 bindings_viewer[self.TRANSLATE_KEY] = self.TRANSLATE_ACTION
-
-    def init_moving_state(self):
-        """Initialize the state of the moving viewer"""
-        with self.moving_viewer.txn() as s:
-            s.voxel_size = self.moving_voxel_size
-            s.layers[self.IMAGE] = neuroglancer.ImageLayer(
-                source=neuroglancer.LocalVolume(
-                    self.moving_image,
-                    voxel_size=s.voxel_size),
-                shader=self.IMAGE_SHADER
-            )
-        self.init_actions(self.moving_viewer, self.on_moving_annotate)
 
     def on_reference_annotate(self, s):
         """Handle an edit in the reference viewer
@@ -453,6 +449,34 @@ void main() {
                 txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
                     annotation_color=self.EDIT_ANNOTATION_COLOR)
 
+    def on_refresh(self, s):
+        self.refresh()
+
+    def refresh(self):
+        """Refresh both views"""
+        with self.moving_viewer.txn() as s:
+            s.voxel_size = self.moving_voxel_size
+            s.layers[self.IMAGE] = neuroglancer.ImageLayer(
+                source=neuroglancer.LocalVolume(
+                    self.moving_image,
+                    voxel_size=s.voxel_size),
+                shader=self.IMAGE_SHADER
+            )
+        with self.reference_viewer.txn() as s:
+            s.voxel_size = self.reference_voxel_size
+            s.layers[self.REFERENCE] = neuroglancer.ImageLayer(
+                source=neuroglancer.LocalVolume(
+                    self.reference_image,
+                    voxel_size=s.voxel_size),
+                shader=self.REFERENCE_SHADER
+            )
+            s.layers[self.ALIGNMENT] = neuroglancer.ImageLayer(
+                source=neuroglancer.LocalVolume(
+                    self.alignment_image,
+                    voxel_size=s.voxel_size),
+                shader = self.ALIGNMENT_SHADER
+            )
+
     def on_undo(self, s):
         """Undo the last operation"""
         if len(self.undo_stack) > 0:
@@ -523,18 +547,27 @@ void main() {
 
     def align_image(self):
         """Warp the moving image into the reference image's space"""
-        warper = Warper(self.reference_pts, self.moving_pts)
-        inputs = [np.arange(0, self.reference_image.shape[_]+ self.decimation - 1,
-                            self.decimation) for _ in range(3)]
-        self.warper = warper.approximate(*inputs)
-        src_coords = np.column_stack([_.flatten() for _ in np.mgrid[
-                        0:self.reference_image.shape[0],
-                        0:self.reference_image.shape[1],
-                        0:self.reference_image.shape[2]]])
-        ii, jj, kk = [_.reshape(self.reference_image.shape) for _ in
-                      self.warper(src_coords).transpose()]
-        map_coordinates(self.moving_image, [ii, jj, kk],
-                        output=self.alignment_image)
+        self.warper = Warper(self.reference_pts, self.moving_pts)
+        inputs = [
+            np.arange(0,
+                      self.reference_image.shape[_]+ self.decimation - 1,
+                      self.decimation)
+            for _ in range(3)]
+        self.warper = self.warper.approximate(*inputs)
+        self.warpers[id(self)] = self.warper
+        with multiprocessing.Pool() as pool:
+            batch_size = int(
+                np.ceil(len(self.reference_image) /
+                        multiprocessing.cpu_count()))
+            futures = []
+            for z0 in range(0, self.reference_image.shape[0], batch_size):
+                z1 = min(z0+batch_size, self.reference_image.shape[0])
+                futures.append(
+                    pool.apply_async(warp_image,
+                                     (z0, z1, id(self), self.reference_image.shape)))
+            pool.close()
+            for future in futures:
+                future.get()
 
     def print_viewers(self):
         """Print the URLs of the viewers to the console"""
@@ -554,6 +587,26 @@ def normalize_image(img):
     """
     img_max = max(1, np.percentile(img.flatten(), 95))
     return np.clip(img.astype(np.float32) / img_max, 0, 1)
+
+
+def warp_image(z0, z1, key, shape):
+    warper = ViewerPair.warpers[key]
+    moving_img = ViewerPair.moving_images[key]
+    if key not in ViewerPair.alignment_buffers:
+        alignment_raw = ViewerPair.alignment_raw[key]
+        alignment_image = np.frombuffer(
+                alignment_raw, np.float32, count=np.prod(shape)).reshape(shape)
+        ViewerPair.alignment_buffers[key] = alignment_image
+    else:
+        alignment_image = ViewerPair.alignment_buffers[key]
+
+    z, y, x = np.mgrid[z0:z1, 0:shape[1], 0:shape[2]]
+    src_coords = np.column_stack([z.flatten(),
+                                  y.flatten(), x.flatten()])
+    ii, jj, kk = [_.reshape(z.shape) for _ in warper(src_coords).transpose()]
+    map_coordinates(moving_img, [ii, jj, kk],
+                    output=alignment_image[z0:z1])
+
 
 def main():
     logging.basicConfig(level=logging.INFO)

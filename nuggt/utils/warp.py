@@ -6,6 +6,22 @@ import numpy as np
 from scipy.interpolate import Rbf, RegularGridInterpolator
 
 
+class Approximator:
+    def __init__(self, interpolators):
+        self.interpolators = interpolators
+
+    def __call__(self, *src_coords):
+        """Warp source coordinates to destination
+
+        :param src_coords: an NxM array of source coordinates
+        :param dest_coords: an NxM' array of destination coordinates,
+        approximated by the gridding of the warper
+        """
+        src_coords = np.atleast_2d(src_coords)
+        return np.column_stack([interpolator(src_coords).flatten()
+                                for interpolator in self.interpolators])
+
+
 class Warper:
     """Warp arbitrary points in one ND space to another
 
@@ -73,17 +89,7 @@ class Warper:
         interpolators = [RegularGridInterpolator(args, array)
                          for array in arrays]
 
-        def warp_function(*src_coords):
-            """Warp source coordinates to destination
-            
-            :param src_coords: an NxM array of source coordinates
-            :param dest_coords: an NxM' array of destination coordinates,
-            approximated by the gridding of the warper
-            """
-            src_coords = np.atleast_2d(src_coords)
-            return np.column_stack([interpolator(src_coords).flatten()
-                                    for interpolator in interpolators])
-        return warp_function
+        return Approximator(interpolators)
 
     def __call__(self, src_coords):
         """Transform source coordinates to destination"""
