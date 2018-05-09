@@ -36,7 +36,8 @@ def parse_args():
                         required=True)
     parser.add_argument("--segmentation",
                         help="Path to the segmentation file accompanying "
-                        "the reference image.")
+                        "the reference image.",
+                        default=None)
     parser.add_argument("--points",
                         help="Path to point-correspondence file",
                         required=True)
@@ -86,6 +87,7 @@ class ViewerPair:
     CORRESPONDENCE_POINTS = "correspondence-points"
     IMAGE = "image"
     EDIT = "edit"
+    SEGMENTATION = "segmentation"
 
     ANNOTATE_ACTION = "annotate"
     CLEAR_ACTION = "clear"
@@ -139,12 +141,14 @@ void main() {
     warpers = {}
     alignment_buffers = {}
 
-    def __init__(self, reference_image, moving_image, points_file,
-                 reference_voxel_size, moving_voxel_size):
+    def __init__(self, reference_image, moving_image, segmentation,
+                 points_file, reference_voxel_size, moving_voxel_size):
         """Constructor
 
         :param reference_image: align to this image
         :param moving_image: align this image
+        :param segmentation: the segmentation associated with the reference
+        image or None if no segmentation.
         :param points_file: where to load and store points
         :param reference_voxel_size: a 3-tuple giving the X, Y and Z voxel
         size in nanometers.
@@ -152,6 +156,7 @@ void main() {
         """
         self.reference_image = reference_image
         self.moving_image = moving_image
+        self.segmentation = segmentation
         self.moving_images[id(self)] = moving_image
         self.decimation = max(1, np.min(reference_image.shape) // 5)
         n_elems = int(np.prod(self.reference_image.shape))
@@ -476,6 +481,13 @@ void main() {
                     voxel_size=s.voxel_size),
                 shader = self.ALIGNMENT_SHADER
             )
+            if self.segmentation is not None:
+                s.layers[self.SEGMENTATION] = neuroglancer.SegmentationLayer(
+                    source=neuroglancer.LocalVolume(
+                        self.segmentation,
+                        voxel_size=s.voxel_size
+                    )
+                )
 
     def on_undo(self, s):
         """Undo the last operation"""
@@ -628,7 +640,12 @@ def main():
     reference_image = normalize_image(tifffile.imread(args.reference_image))
     logging.info("Reading moving image")
     moving_image = normalize_image(tifffile.imread(args.moving_image))
-    vp = ViewerPair(reference_image, moving_image, args.points,
+    if args.segmentation is not None:
+        logging.info("Reading segmentation")
+        segmentation = tifffile.imread(args.segmentation).astype(np.uint32)
+    else:
+        segmentation = None
+    vp = ViewerPair(reference_image, moving_image, segmentation, args.points,
                     reference_voxel_size, moving_voxel_size)
     if not args.no_launch:
         vp.launch_viewers()

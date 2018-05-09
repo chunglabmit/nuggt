@@ -60,6 +60,8 @@ where:
 image to be aligned to the reference image
 * **reference-image-file** is a 3D .tiff file containing the volume of
 the reference image, in the reference coordinate frame.
+* **segmentation** is a 3D .tiff file containing the reference segmentation,
+accompanying the reference image.
 * **points-file** is a file to contain (or already containing) the
 moving image reference points and their corresponding points in the 
 reference image. **nuggt-align** initially loads the points from this file
