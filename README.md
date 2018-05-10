@@ -52,6 +52,7 @@ Run **nuggt-align** like this:
 ```bash
 > nuggt-align --moving-image <moving-image-file> \
               --reference-image <reference-image-file> \
+              --segmentation <segmentation> \
               --points <points-file> \
               [--no-launch]
 ```

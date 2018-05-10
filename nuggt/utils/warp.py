@@ -86,7 +86,8 @@ class Warper:
                         for in_idx, arg in enumerate(args)])).reshape(gshape)
             for rbf in self.rbfs]
 
-        interpolators = [RegularGridInterpolator(args, array)
+        interpolators = [RegularGridInterpolator(
+            args, array, bounds_error=False)
                          for array in arrays]
 
         return Approximator(interpolators)
