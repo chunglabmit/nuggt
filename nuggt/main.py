@@ -10,9 +10,11 @@ import time
 
 viewer = None
 
+
 def say(msg, category):
     with viewer.config_state.txn() as txn:
         txn.status_messages[category] = msg
+
 
 def action_handler(viewer, s, min_distance):
     point = s.mouse_voxel_coordinates
@@ -30,6 +32,7 @@ def action_handler(viewer, s, min_distance):
             neuroglancer.viewer_state.PointAnnotationLayer(points=points)
         say("Added point at %.2f, %.2f, %.2f" % (point[0], point[1], point[2]),
             "annotation")
+
 
 def delete_handler(s, min_distance):
     point = s.mouse_voxel_coordinates
@@ -52,6 +55,7 @@ def delete_handler(s, min_distance):
             txn.layers["annotation"] = \
                 neuroglancer.viewer_state.PointAnnotationLayer(points=points)
             
+
 def save(viewer, output):
     points = [_.point.tolist() for
               _ in viewer.state.layers["annotation"].annotations]
@@ -61,6 +65,7 @@ def save(viewer, output):
         os.rename(output, output+".old")
     json.dump(points, open(output, "w"), indent=2)
     say("Saved annotations to %s" % output, "save")
+
 
 def main():
     global viewer
@@ -128,6 +133,7 @@ def main():
     print("Hit control-c to exit")
     while True:
         time.sleep(10)
+
 
 if __name__=="__main__":
     main()
