@@ -103,6 +103,17 @@ def pointlayer(txn, name, x, y, z, color):
         annotation_color=color
     )
 
+def has_layer(txn, name):
+    """Return true if the viewer state has a layer with the given name
+
+    :param txn: A viewer state transaction, e.g. viewer.txn()
+    :param name: the layer name to search for
+    """
+    for layer in txn.layers:
+        if layer.name == name:
+            return True
+    return False
+
 def post_message_immediately(viewer, topic, message):
     """Post a message to a viewer w/o waiting for the event loop
 
