@@ -34,10 +34,37 @@ where
 * *d* is the minimum allowed distance in voxels between entered points
 
 Commands available in the browser:
-* *t key* - add a point at the current cursor (easiest to place cursor over
+* *shift-a* - add a point at the current cursor (easiest to place cursor over
             the x-y, x-z or y-z displays to pick the point in 2-d)
-* *u key* - save the points to *points.json*
-* *v key* - delete the point nearest to the cursor
+* *shift-s key* - save the points to *points.json*
+* *shift-d key* - delete the point nearest to the cursor
+
+##yea-nay
+
+**yea-nay** is a tool for quickly separating a list of points into two classes,
+e.g. true positives and false positives. The user is presented with each point
+in turn and can either choose "yea" or "nay" (vote yes for "yea" or vote 
+no for "nay"). At the end, the list of points
+in either class is written out. As-yet undecided points are displayed as
+yellow dots, "yea" points are displayed as green dots and "nay" points are
+displayed as red dots.
+
+```commandline
+> yea-nay --help
+```
+gives the command-line options for the tool. Inside the browser, the following
+commands are available:
+
+* *shift-y* - move the current point into the "yea" class and move to the next
+point.
+* *shift-n* - move the current point into the "nay" class and move to the next
+point.
+* *shift-[* - move to the next point, leaving the current point in whatever
+class it is in.
+* *shift-]* - move to the previous point, leaving the current point in
+whatever class it is in.
+* *control-q* - finish, writing the points to the "yea" and "nay" files as
+designated on the command-line.
 
 ## nuggt-align
 

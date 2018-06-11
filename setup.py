@@ -23,7 +23,8 @@ setup(
     entry_points={ 'console_scripts': [
         'nuggt=nuggt.main:main',
         'nuggt-align=nuggt.align:main',
-        'sitk-align=nuggt.sitk_align:main'
+        'sitk-align=nuggt.sitk_align:main',
+        'yea-nay=nuggt.yea_nay:main'
     ]},
     url="https://github.com/chunglabmit/nuggt",
     license="MIT",
