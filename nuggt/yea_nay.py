@@ -43,6 +43,7 @@ class NuggtYeaNay:
         self.viewer.actions.add("nay", self.on_nay)
         self.viewer.actions.add("next", self.on_next)
         self.viewer.actions.add("previous", self.on_previous)
+        self.viewer.actions.add("center", self.on_center)
         with self.viewer.config_state.txn() as s:
             v = s.input_event_bindings.viewer
             v["control+keyq"] = "quit"
@@ -50,6 +51,7 @@ class NuggtYeaNay:
             v["shift+keyn"] = "nay"
             v["shift+bracketleft"] = "previous"
             v["shift+bracketright"] = "next"
+            v["shift+keyc"] = "center"
 
     @property
     def yea(self):
@@ -84,6 +86,9 @@ class NuggtYeaNay:
 
     def on_previous(self, s):
         self.idx = (self.idx + len(self.points) - 1) % len(self.points)
+        self.go_to()
+
+    def on_center(self, s):
         self.go_to()
 
     def _get_masked_points(self, mask):
