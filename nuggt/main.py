@@ -339,6 +339,10 @@ def load_image(path, x0=0, x1=None, y0=0, y1=None, z0=0, z1=None):
 
 class NavViewer(NGReference):
 
+    def __init__(self, *args, **kwargs):
+        super(NavViewer, self).__init__(*args, **kwargs)
+        self.repositioning_log_file = None
+
     def bind(self):
         """Bind the nav viewer"""
         self.viewer.actions.add("jump", self.on_action)
@@ -358,6 +362,13 @@ class NavViewer(NGReference):
         viewer.reposition(x0a, x1a, y0a, y1a, z0a, z1a)
         with self.viewer.config_state.txn() as txn:
             txn.status_messages["jumping"] = "Viewer repositioned"
+        if self.repositioning_log_file is not None:
+            with open(self.repositioning_log_file, "a") as fd:
+                json.dump(
+                    dict(x0=x0a, x1=x1a, y0=y0a, y1=y1a, z0=z0a, z1=z1a), fd)
+                fd.write("\n")
+        else:
+            print(json.dumps(dict(x0=x0a, x1=x1a, y0=y0a, y1=y1a, z0=z0a, z1=z1a)))
 
 
 def main():
@@ -399,6 +410,11 @@ def main():
                         help="A .json file containing arrays of moving "
                         "and reference points to be used to warp the reference"
                         " frame into the moving frame.")
+    parser.add_argument("--repositioning-log-file",
+                        default=None,
+                        help="This file saves a record of the coordinates "
+                        "of each repositioning in order to keep track of "
+                        "which areas have been visited.")
     args = parser.parse_args()
     neuroglancer.set_server_bind_address(args.bind_address, bind_port=args.port)
 
@@ -431,6 +447,8 @@ def main():
         nav_viewer = NavViewer(ref_img, ref_seg, moving, reference,
                                viewer.shape)
         nav_viewer.bind()
+        if args.repositioning_log_file is not None:
+            nav_viewer.repositioning_log_file = args.repositioning_log_file
         sample = np.random.permutation(len(viewer.points))[:10000]
         pts = viewer.points[sample, ::-1]
         nav_viewer.add_points(pts)
