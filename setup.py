@@ -23,6 +23,7 @@ setup(
     entry_points={ 'console_scripts': [
         'nuggt=nuggt.main:main',
         'nuggt-align=nuggt.align:main',
+        'nuggt-display=nuggt.display_image:main',
         'sitk-align=nuggt.sitk_align:main',
         'yea-nay=nuggt.yea_nay:main'
     ]},
