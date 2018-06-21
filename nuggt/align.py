@@ -52,6 +52,10 @@ def parse_args():
                         type=int,
                         default=None,
                         help="Port # for http. Default = let program choose")
+    parser.add_argument("--static-content-source",
+                        default=None,
+                        help="The URL of the static content source, e.g. "
+                        "http://localhost:8080 if being served via npm.")
     parser.add_argument("--reference-voxel-size",
                         help="X, Y and Z size of voxels, separated by "
                         "commas, e.g. \"1.6,1.6,1.0\"",
@@ -632,6 +636,8 @@ def main():
             bind_address=args.ip_address)
     elif args.port is not None:
         neuroglancer.set_server_bind_address(bind_port=args.port)
+    if args.static_content_source is not None:
+        neuroglancer.set_static_content_source(url=args.static_content_source)
     reference_voxel_size = \
         [float(_)*1000 for _ in args.reference_voxel_size.split(",")]
     moving_voxel_size = \

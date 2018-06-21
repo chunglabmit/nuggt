@@ -400,6 +400,10 @@ def main():
                         "The default is 127.0.0.1 which is constrained to "
                         "the local machine.",
                         default="127.0.0.1")
+    parser.add_argument("--static-content-source",
+                        default=None,
+                        help="The URL of the static content source, e.g. "
+                        "http://localhost:8080 if being served via npm.")
     parser.add_argument("--reference-image",
                         help="An image of a reference volume to be used "
                         "for navigation.")
@@ -417,6 +421,8 @@ def main():
                         "which areas have been visited.")
     args = parser.parse_args()
     neuroglancer.set_server_bind_address(args.bind_address, bind_port=args.port)
+    if args.static_content_source is not None:
+        neuroglancer.set_static_content_source(url=args.static_content_source)
 
     if args.coordinates:
         x0, x1, y0, y1, z0, z1 = list(map(int, args.coordinates.split(",")))
