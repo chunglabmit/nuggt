@@ -1,10 +1,17 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+import numpy as np
+import os
 
 version = "0.1.0"
 
 with open("./README.md") as fd:
     long_description = fd.read()
 
+sitk_align_extension = Extension(
+    name="nuggt._sitk_align",
+    sources=[os.path.join("nuggt", "_sitk_align.pyx")],
+    include_dirs=[np.get_include()]
+)
 setup(
     name="nuggt",
     version=version,
@@ -32,5 +39,7 @@ setup(
     classifiers=[
         "Development Status :: 3 - Alpha",
         'Programming Language :: Python :: 3.5',
-    ]
+    ],
+    ext_modules=[sitk_align_extension],
+    zip_safe=False
 )

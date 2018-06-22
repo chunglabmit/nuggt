@@ -102,6 +102,10 @@ ENV/
 
 # PyCharm
 .idea/
+.pytest_cache
 
 # VSCode
 .vscode/
+
+# Cython .c files
+nuggt/_sitk_align.c
