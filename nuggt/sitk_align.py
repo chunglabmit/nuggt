@@ -126,7 +126,7 @@ def read_point_set(filename):
     :returns: an Nx3 array of the output points
     """
     pattern = \
-        "%s\\s*=\\s*\\[\\s*(\\d+.?\\d*)\\s+(\\d+.?\\d*)\\s+(\\d+.?\\d*)\\s*\\]"
+        "%s\\s*=\\s*\\[\\s*(-?\\d+.?\\d*)\\s+(-?\\d+.?\\d*)\\s+(-?\\d+.?\\d*)\\s*\\]"
     outpoints = []
     with open(filename) as fd:
         for line in fd:
