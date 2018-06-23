@@ -161,7 +161,7 @@ def transform(points, moving_image, transform_parameter_map):
         out_a = np.memmap(output_path, np.uint8, mode="r")
         result = np.zeros(points.shape, np.float32)
         parse_pts_file(out_a, result)
-        return result
+        return result[:,::-1]
     finally:
         shutil.rmtree(temp_dir)
 
