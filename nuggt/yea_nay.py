@@ -190,7 +190,14 @@ def main():
     parser.add_argument("--new-browser-window",
                         help="Open Neuroglancer in a new browser window.",
                         action="store_true")
+    parser.add_argument("--static-content-source",
+                        default=None,
+                        help="The URL of the static content source, e.g. "
+                        "http://localhost:8080 if being served via npm.")
+
     args = parser.parse_args()
+    if args.static_content_source != None:
+        neuroglancer.set_static_content_source(url=args.static_content_source)
     neuroglancer.set_server_bind_address(args.bind_address, bind_port=args.port)
 
     with open(args.input_coordinates) as fd:
