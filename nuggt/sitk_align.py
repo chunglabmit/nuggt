@@ -159,7 +159,8 @@ def transform(points, moving_image, transform_parameter_map):
         tif.Execute()
         output_path = os.path.join(temp_dir, "outputpoints.txt")
         out_a = np.memmap(output_path, np.uint8, mode="r")
-        result = np.zeros(points.shape, np.float32)
+        shape = (len(points), len(points[0]))
+        result = np.zeros(shape, np.float32)
         parse_pts_file(out_a, result)
         return result[:,::-1]
     finally:
