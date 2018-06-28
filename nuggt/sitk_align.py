@@ -117,7 +117,7 @@ def write_point_set(filename, points):
         fd.write("point\n")
         fd.write("%d\n" % len(points))
         for z, y, x in points:
-            fd.write("%d %d %d\n" % (x, y, z))
+            fd.write("%f %f %f\n" % (x, y, z))
 
 
 def read_point_set(filename):
