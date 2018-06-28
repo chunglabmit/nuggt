@@ -17,6 +17,7 @@ import time
 import webbrowser
 
 from .utils.warp import Warper
+from .utils.ngutils import layer, gray_shader, green_shader
 
 # Monkey-patch neuroglancer.PointAnnotationLayer to have a color
 
@@ -465,26 +466,14 @@ void main() {
         """Refresh both views"""
         with self.moving_viewer.txn() as s:
             s.voxel_size = self.moving_voxel_size
-            s.layers[self.IMAGE] = neuroglancer.ImageLayer(
-                source=neuroglancer.LocalVolume(
-                    self.moving_image,
-                    voxel_size=s.voxel_size),
-                shader=self.IMAGE_SHADER
-            )
+            layer(s, self.IMAGE, self.moving_image, gray_shader, 1.0,
+                  voxel_size=s.voxel_size)
         with self.reference_viewer.txn() as s:
             s.voxel_size = self.reference_voxel_size
-            s.layers[self.REFERENCE] = neuroglancer.ImageLayer(
-                source=neuroglancer.LocalVolume(
-                    self.reference_image,
-                    voxel_size=s.voxel_size),
-                shader=self.REFERENCE_SHADER
-            )
-            s.layers[self.ALIGNMENT] = neuroglancer.ImageLayer(
-                source=neuroglancer.LocalVolume(
-                    self.alignment_image,
-                    voxel_size=s.voxel_size),
-                shader = self.ALIGNMENT_SHADER
-            )
+            layer(s, self.REFERENCE, self.reference_image, green_shader, 1.0,
+                  voxel_size=s.voxel_size)
+            layer(s, self.ALIGNMENT, self.alignment_image, gray_shader, 1.0,
+                  voxel_size=s.voxel_size)
             if self.segmentation is not None:
                 s.layers[self.SEGMENTATION] = neuroglancer.SegmentationLayer(
                     source=neuroglancer.LocalVolume(
@@ -548,12 +537,8 @@ void main() {
             self.align_image()
             with self.reference_viewer.txn() as txn:
                 txn.voxel_size = self.reference_voxel_size
-                txn.layers[self.ALIGNMENT] = neuroglancer.ImageLayer(
-                    source=neuroglancer.LocalVolume(
-                        self.alignment_image,
-                        voxel_size=txn.voxel_size),
-                    shader=self.ALIGNMENT_SHADER
-                )
+                layer(txn, self.ALIGNMENT, self.alignment_image,
+                      gray_shader, 1.0, voxel_size=txn.voxel_size),
             self.post_message(self.reference_viewer, self.WARP_ACTION,
                     "Warping complete, thank you for your patience.")
         except:
@@ -596,15 +581,6 @@ void main() {
         webbrowser.open_new(self.moving_viewer.get_viewer_url())
 
 
-def normalize_image(img):
-    """Normalize an image for display in neuroglancer
-
-    :param img: the 3d image to be displayed
-    """
-    img_max = max(1, np.percentile(img.flatten(), 95))
-    return np.clip(img.astype(np.float32) / img_max, 0, 1)
-
-
 def warp_image(z0, z1, key, shape):
     warper = ViewerPair.warpers[key]
     moving_img = ViewerPair.moving_images[key]
@@ -643,9 +619,9 @@ def main():
     moving_voxel_size = \
         [float(_)*1000 for _ in args.moving_voxel_size.split(",")]
     logging.info("Reading reference image")
-    reference_image = normalize_image(tifffile.imread(args.reference_image))
+    reference_image = tifffile.imread(args.reference_image).astype(np.float32)
     logging.info("Reading moving image")
-    moving_image = normalize_image(tifffile.imread(args.moving_image))
+    moving_image = tifffile.imread(args.moving_image).astype(np.float32)
     if args.segmentation is not None:
         logging.info("Reading segmentation")
         segmentation = tifffile.imread(args.segmentation).astype(np.uint32)

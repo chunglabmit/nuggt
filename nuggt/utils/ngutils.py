@@ -42,10 +42,11 @@ if not hasattr(neuroglancer.PointAnnotationLayer, "annotation_color"):
     neuroglancer.PointAnnotationLayer.annotation_color = \
         wrapped_property('annotationColor', optional(text_type))
 
-voxel_size = (1000, 1000, 1000)
+default_voxel_size = (1000, 1000, 1000)
 
 
-def layer(txn, name, img, shader, multiplier, offx=0, offy=0, offz=0):
+def layer(txn, name, img, shader, multiplier, offx=0, offy=0, offz=0,
+          voxel_size=default_voxel_size):
     """Add an image layer to Neuroglancer
 
     :param txn: The transaction context of the viewer
@@ -67,7 +68,8 @@ def layer(txn, name, img, shader, multiplier, offx=0, offy=0, offz=0):
     )
 
 
-def seglayer(txn, name, seg, offx=0, offy=0, offz=0):
+def seglayer(txn, name, seg, offx=0, offy=0, offz=0,
+             voxel_size=default_voxel_size):
     """Add a segmentation layer
 
     :param txn: the neuroglancer transaction
