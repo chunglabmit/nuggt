@@ -81,7 +81,12 @@ Run **nuggt-align** like this:
               --reference-image <reference-image-file> \
               --segmentation <segmentation> \
               --points <points-file> \
-              [--no-launch]
+              [--no-launch] \
+              [--ip-address <ip-address>] \
+              [--port <port>] \
+              [--static-content-source <static-content-url>] \
+              [--reference-voxel-size <reference-voxel-size>] \
+              [--moving-voxel-size <moving-voxel-size]
 ```
 where:
 * **moving-image-file** is a 3D .tiff file containing the volume of the
@@ -98,6 +103,22 @@ list of points.
 * **--no-launch** if you want to start **nuggt-align** without
 automatically creating new browser windows with the moving and
 reference images.
+* **--ip-address** the IP address to bind the webserver to. This
+defaults to *localhost* which is appropriate for local use. Other
+choices are *0.0.0.0* for all NICs on your machine or the IP address
+of your machine on the network.
+* **--port** the port number to bind to. The port number that the server
+binds to. By default, *nuggt-align* uses any available port.
+* **--static-content-source** the URL of the Node server serving the
+static content. Default is to use the Neuroglancer default. If you are
+running `npm run python-dev-server` on your machine, "http://localhost:8080"
+is likely the correct choice
+* **--reference-voxel-size** The size of a voxel in the reference image
+(in nanometers). The three sizes should be specified, separated by commas,
+e.g. "1000.0,1000.0,1000.0".
+* **--reference-voxel-size** The size of a voxel in the moving image
+(in nanometers). The three sizes should be specified, separated by commas,
+e.g. "1000.0,1000.0,1000.0".
 
 **nuggt-align** will print the URLs of the reference viewer and moving
 viewer on startup. These can be used to launch browser instances for
