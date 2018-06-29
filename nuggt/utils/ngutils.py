@@ -60,11 +60,14 @@ def layer(txn, name, img, shader, multiplier, offx=0, offy=0, offz=0,
     :param multiplier: the multiplier to apply to the normalized data value.
     This can be used to brighten or dim the image.
     """
+    frac = multiplier / np.percentile(img, 99.9)
+    if img.dtype.kind in ("i", "u"):
+        frac = frac * np.iinfo(img.dtype).max
     txn.layers[name] = neuroglancer.ImageLayer(
         source = neuroglancer.LocalVolume(img,
                                           voxel_offset=(offx, offy, offz),
                                           voxel_size=voxel_size),
-        shader = shader % (multiplier / np.percentile(img, 99.9))
+        shader = shader % frac
     )
 
 
