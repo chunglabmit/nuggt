@@ -51,8 +51,12 @@ class NuggtViewer:
         self.deleting_points = None
         self.box_coords = None
         filenames = sorted(glob.glob(img_path))
-        self.y_extent, self.x_extent = tifffile.imread(filenames[0]).shape
-        self.z_extent = len(filenames)
+        if len(filenames) == 1:
+            self.z_extent, self.y_extent, self.x_extent = \
+                tifffile.imread(filenames[0]).shape
+        else:
+            self.y_extent, self.x_extent = tifffile.imread(filenames[0]).shape
+            self.z_extent = len(filenames)
         if x0 is not None and x1 is not None:
             self.width = x1 - x0
             self.x0 = x0

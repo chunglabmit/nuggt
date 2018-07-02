@@ -175,8 +175,8 @@ Invoke **sitk-align** like this:
 > sitk-align --moving-file <moving-file> --fixed-file <fixed-file> \
              [--fixed-point-file <fixed-point-file>] \
              [--alignment-point-file <alignment-point-file>] \
-             [--aligned-file <aligned-file]\
-
+             [--aligned-file <aligned-file>]\
+             [--final-grid-spacing <final-grid-spacing>]
 ```
 where
 * *moving-file* is the path to the moving 3-d image. See SimpleITK for accepted
@@ -191,3 +191,8 @@ will be in the format used by the *--points-file* argument of **nuggt-align**.
 * *aligned-file* is the optional file name for the moving file, warped into the
 fixed-point-file's space. The file will not be written if the switch is not
 specified.
+* *final-grid-spacing* is an optional parameter for the alignment algorithm
+It specifies the number of voxels between bspline grid points in the x,
+y and z directions - a higher number results in a more rigid alignment
+whereas a lower number results in more local adaptability to deformation.
+It should be specified as three comma-separated values, e.g. "32,32,32".

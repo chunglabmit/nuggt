@@ -12,6 +12,7 @@ import shutil
 import tempfile
 from ._sitk_align import parse as parse_pts_file
 
+FINAL_GRID_SPACING_IN_VOXELS = ['32', '32', '32']
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -28,6 +29,9 @@ def parse_args():
                         default=None)
     parser.add_argument("--aligned-file",
                         help="Path to the alignment image file to be written.",
+                        default=None)
+    parser.add_argument("--final-grid-spacing",
+                        help="The spacing between voxels for the bspline grid",
                         default=None)
     return parser.parse_args()
 
@@ -64,7 +68,7 @@ def getParameterMap(rigid=True, affine=True, bspline=True):
         bsplineMap['FinalBSplineInterpolationOrder'] = ['3']
         # increasing make atlas deform more, decrease deform less. should be odd numbers from 3
         #bsplineMap['FinalGridSpacingInVoxels'] = ['8']
-        bsplineMap['FinalGridSpacingInVoxels'] = ['8','8','32']
+        bsplineMap['FinalGridSpacingInVoxels'] = FINAL_GRID_SPACING_IN_VOXELS
         # increasing make atlas deform less, decrease deform more., current issue might be the gridspacing issue
         bsplineMap['NumberOfHistogramBins'] = ['4','8','16','32','64']
         bsplineMap['NumberOfResolutions'] = ['6']
@@ -168,7 +172,10 @@ def transform(points, moving_image, transform_parameter_map):
 
 
 def main():
+    global FINAL_GRID_SPACING_IN_VOXELS
     args = parse_args()
+    if args.final_grid_spacing is not None:
+        FINAL_GRID_SPACING_IN_VOXELS = args.final_grid_spacing.split(",")
     fixed_image = sitk.ReadImage(args.fixed_file)
     moving_image = sitk.ReadImage(args.moving_file)
     aligned_file = args.aligned_file
