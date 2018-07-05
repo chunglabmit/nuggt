@@ -27,7 +27,13 @@ def main():
                         default=0,
                         type=int,
                         help="Port # of neuroglancer server.")
+    parser.add_argument("--static-content-source",
+                        default=None,
+                        help="The URL of the static content source, e.g. "
+                        "http://localhost:8080 if being served via npm.")
     args = parser.parse_args()
+    if args.static_content_source is not None:
+        neuroglancer.set_static_content_source(url=args.static_content_source)
     neuroglancer.set_server_bind_address(args.ip_address, args.port)
     viewer = neuroglancer.Viewer()
     with viewer.txn() as txn:
