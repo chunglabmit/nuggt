@@ -17,7 +17,7 @@ import time
 import webbrowser
 
 from .utils.warp import Warper
-from .utils.ngutils import layer, gray_shader, green_shader
+from .utils.ngutils import layer, red_shader, gray_shader, green_shader
 
 # Monkey-patch neuroglancer.PointAnnotationLayer to have a color
 
@@ -470,9 +470,9 @@ void main() {
                   voxel_size=s.voxel_size)
         with self.reference_viewer.txn() as s:
             s.voxel_size = self.reference_voxel_size
-            layer(s, self.REFERENCE, self.reference_image, green_shader, 1.0,
+            layer(s, self.REFERENCE, self.reference_image, red_shader, 1.0,
                   voxel_size=s.voxel_size)
-            layer(s, self.ALIGNMENT, self.alignment_image, gray_shader, 1.0,
+            layer(s, self.ALIGNMENT, self.alignment_image, green_shader, 1.0,
                   voxel_size=s.voxel_size)
             if self.segmentation is not None:
                 s.layers[self.SEGMENTATION] = neuroglancer.SegmentationLayer(
@@ -538,7 +538,7 @@ void main() {
             with self.reference_viewer.txn() as txn:
                 txn.voxel_size = self.reference_voxel_size
                 layer(txn, self.ALIGNMENT, self.alignment_image,
-                      gray_shader, 1.0, voxel_size=txn.voxel_size),
+                      green_shader, 1.0, voxel_size=txn.voxel_size),
             self.post_message(self.reference_viewer, self.WARP_ACTION,
                     "Warping complete, thank you for your patience.")
         except:
