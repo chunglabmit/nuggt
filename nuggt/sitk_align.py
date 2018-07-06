@@ -33,6 +33,10 @@ def parse_args():
     parser.add_argument("--final-grid-spacing",
                         help="The spacing between voxels for the bspline grid",
                         default=None)
+    parser.add_argument("--transform-parameters-folder",
+                        help="sitk-align will save the TransformParameters.txt"
+                        " files in this directory if specified.",
+                        default=None)
     return parser.parse_args()
 
 
@@ -84,13 +88,17 @@ def getParameterMap(rigid=True, affine=True, bspline=True):
     return parameterMapVector
 
 
-def align(fixed_image, moving_image, aligned_image_path):
+def align(fixed_image, moving_image, aligned_image_path,
+          transform_parameter_folder = None):
     """Align the files
 
     :param fixed_image: the SimpleITK image for the fixed image
     :param moving_path: the SimpleITK moving image
     :param aligned_image_path: path to write the image after alignment or
            None if user does not want the image
+    :param transform_parameter_folder: where to store the transform
+    parameter files (this is a side-effect of running
+    ElastixImageFilter.Execute in the transfer_parameter_folder directory)
     :returns: a transform map
     """
     selx = sitk.ElastixImageFilter()
@@ -99,7 +107,13 @@ def align(fixed_image, moving_image, aligned_image_path):
 
     selx.SetFixedImage(fixed_image)
     selx.SetMovingImage(moving_image)
-    selx.Execute()
+    curdir = os.path.abspath(os.getcwd())
+    try:
+        if transform_parameter_folder is not None:
+            os.chdir(transform_parameter_folder)
+        selx.Execute()
+    finally:
+        os.chdir(curdir)
     if aligned_image_path is not None:
         sitk.WriteImage(selx.GetResultImage(), aligned_image_path)
     return selx.GetTransformParameterMap()
@@ -181,7 +195,8 @@ def main():
     aligned_file = args.aligned_file
     fixed_point_file = args.fixed_point_file
     alignment_point_file = args.alignment_point_file
-    transform_pm = align(fixed_image, moving_image, aligned_file)
+    transform_pm = align(fixed_image, moving_image, aligned_file,
+                         args.transform_parameters_folder)
     if alignment_point_file is not None:
         with open(fixed_point_file) as fd:
             points = json.load(fd)

@@ -414,6 +414,9 @@ def main():
     parser.add_argument("--reference-segmentation",
                         help="A segmentation image of the reference volume "
                         "to be used for navigation.")
+    parser.add_argument("--reference-points",
+                        help="The point annotations, transformed into the "
+                             "reference space.")
     parser.add_argument("--point-correspondence-file",
                         help="A .json file containing arrays of moving "
                         "and reference points to be used to warp the reference"
@@ -460,7 +463,12 @@ def main():
         if args.repositioning_log_file is not None:
             nav_viewer.repositioning_log_file = args.repositioning_log_file
         sample = np.random.permutation(len(viewer.points))[:10000]
-        pts = viewer.points[sample, ::-1]
+        if args.reference_points is not None:
+            with open(args.reference_points) as fd:
+                rp = np.array(json.load(fd))
+                pts = rp[sample, ::-1]
+        else:
+            pts = viewer.points[sample, ::-1]
         nav_viewer.add_points(pts)
         print("Navigating viewer: %s" % nav_viewer.viewer.get_viewer_url())
     print("Hit control-c to exit")
