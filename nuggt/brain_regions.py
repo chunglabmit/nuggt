@@ -55,6 +55,7 @@ class BrainRegions:
         self.acronym_per_id = {}
         self.hierarchy = {}
         self.id_per_region = {}
+        self.level_per_id = {}
 
         for line in lines:
             idd, counts, density, name, acronym = [
@@ -74,7 +75,9 @@ class BrainRegions:
                 self.id_per_region[name] = set()
             self.id_per_region[name].add(idd)
             prev = name
+            self.level_per_id[idd] = []
             for nxt in line[hierarchy_idx:]:
+                self.level_per_id[idd].insert(0, nxt[2:-1])
                 nxt = nxt[2:-1]
                 if nxt != prev:
                     self.hierarchy[prev] = nxt
@@ -91,6 +94,15 @@ class BrainRegions:
         :returns: the name associated with that ID
         """
         return self.name_per_id[idx]
+
+    def get_level_name(self, idx, level):
+        """Return the name of the level (1 to 7) for a given ID
+
+        :param idx: the ID of the brain region
+        :param level: the level, from 1 (the most gross level) to 7 (the most
+        fine)
+        """
+        return self.level_per_id[idx][level - 1 ]
 
     def get_acronym(self, idx):
         """Return the acronym / abbreviation for a segmentation ID

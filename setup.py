@@ -28,10 +28,12 @@ setup(
     author="Kwanghun Chung Lab",
     packages=["nuggt", "nuggt.utils"],
     entry_points={ 'console_scripts': [
+        'count-points-in-region=nuggt.count_points_in_region:main'
         'nuggt=nuggt.main:main',
         'nuggt-align=nuggt.align:main',
         'nuggt-display=nuggt.display_image:main',
         'make-alignment-file=nuggt.make_alignment_file:main',
+        'rescale-alignment-file=nuggt.rescale_alignment_file:main',
         'sitk-align=nuggt.sitk_align:main',
         'yea-nay=nuggt.yea_nay:main'
     ]},
