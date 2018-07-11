@@ -11,10 +11,13 @@ import tifffile
 import threading
 import webbrowser
 
+MSG_INFO = "Info"
+MSG_WARNING = "Warning"
+MSG_ERROR = "Error"
 
 class NuggtYeaNay:
 
-    def __init__(self, imgs, points, quit_cb):
+    def __init__(self, imgs, points, quit_cb, save_cb):
         """Initializer
 
 
@@ -26,10 +29,12 @@ class NuggtYeaNay:
         x coordinate
 
         :param quit_cb: a function to be called when quitting.
+        :param save_cb: a function to be called when saving
         """
         self.idx = 0
         self.points = points
         self.quit_cb = quit_cb
+        self.save_cb = save_cb
         self.viewer = neuroglancer.Viewer()
         self._yea = np.zeros(len(points), bool)
         self._nay = np.zeros(len(points), bool)
@@ -41,17 +46,27 @@ class NuggtYeaNay:
         self.viewer.actions.add("quit", self.on_quit)
         self.viewer.actions.add("yea", self.on_yea)
         self.viewer.actions.add("nay", self.on_nay)
+        self.viewer.actions.add("go-to", self.on_go_to)
         self.viewer.actions.add("next", self.on_next)
+        self.viewer.actions.add("next-unmarked", self.on_next_unmarked)
         self.viewer.actions.add("previous", self.on_previous)
+        self.viewer.actions.add("previous-unmarked", self.on_previous_unmarked)
         self.viewer.actions.add("center", self.on_center)
+        if save_cb is not None:
+            self.viewer.actions.add("save", self.on_save)
         with self.viewer.config_state.txn() as s:
             v = s.input_event_bindings.viewer
             v["control+keyq"] = "quit"
             v["shift+keyy"] = "yea"
             v["shift+keyn"] = "nay"
+            v["shift+keyg"] = "go-to"
             v["shift+bracketleft"] = "previous"
+            v["control+bracketleft"] = "previous-unmarked"
             v["shift+bracketright"] = "next"
+            v["control+bracketright"] = "next-unmarked"
             v["shift+keyc"] = "center"
+            if save_cb is not None:
+                v["control+keys"] = "save"
 
     @property
     def yea(self):
@@ -84,12 +99,67 @@ class NuggtYeaNay:
         self.idx = (self.idx + 1) % len(self.points)
         self.go_to()
 
+    def on_next_unmarked(self, s):
+        unmarked_idx = np.where(~ (self._yea | self._nay))[0]
+        if len(unmarked_idx) == 0:
+            with self.viewer.config_state.txn() as txn:
+                txn.status_messages[MSG_WARNING] = "No next unmarked point"
+            return
+        larger = unmarked_idx[unmarked_idx > self.idx]
+        if len(larger) > 0:
+            self.idx = larger[0]
+        else:
+            self.idx = unmarked_idx[0]
+        self.go_to()
+
     def on_previous(self, s):
         self.idx = (self.idx + len(self.points) - 1) % len(self.points)
         self.go_to()
 
+    def on_previous_unmarked(self, s):
+        unmarked_idx = np.where(~ (self._yea | self._nay))[0]
+        if len(unmarked_idx) == 0:
+            with self.viewer.config_state.txn() as txn:
+                txn.status_messages[MSG_WARNING] = "No previous unmarked point"
+            return
+        smaller = unmarked_idx[unmarked_idx < self.idx]
+        if len(smaller) > 0:
+            self.idx = smaller[-1]
+        else:
+            self.idx = unmarked_idx[-1]
+        self.go_to()
+
+    def on_go_to(self, s):
+        for layer_name in ("unmarked", "yea", "nay"):
+            layer = s.viewerState.layers[layer_name].layer
+            d = layer.to_json()
+            if "selectedAnnotation" in d:
+                idx = int(d["selectedAnnotation"])
+                if layer_name == "unmarked":
+                    mask = ~ (self._yea | self._nay)
+                elif layer_name == "yea":
+                    mask = self._yea
+                else:
+                    mask = self._nay
+                self.idx = np.where(mask)[0][idx]
+                self.go_to()
+                break
+        else:
+            with self.viewer.config_state.txn() as txn:
+                txn.status_messages[MSG_WARNING] = "No selected point"
+
+
     def on_center(self, s):
         self.go_to()
+
+    def on_save(self, s):
+        try:
+            self.save_cb(self.yea, self.nay)
+            with self.viewer.config_state.txn() as txn:
+                txn.status_messages[MSG_INFO] = "Yea and Nay saved"
+        except BaseException as e:
+            with self.viewer.config_state.txn() as txn:
+                txn.status_message[MSG_ERROR] = str(e)
 
     def _get_masked_points(self, mask):
         """Return the masked points, in x, y, z form"""
@@ -111,7 +181,7 @@ class NuggtYeaNay:
             txn.position.voxel_coordinates = self.points[self.idx, ::-1]
 
 
-def sort_points(imgs, points, launch_ui=False):
+def sort_points(imgs, points, launch_ui=False, save_cb=None):
     """Sort points into "yea" and "nay" using a Neuroglancer UI
 
     Note: this prints the URL in the console. You can preconfigure Neuroglancer
@@ -134,7 +204,8 @@ def sort_points(imgs, points, launch_ui=False):
     """
 
     e = threading.Event()
-    viewer = NuggtYeaNay(imgs, points, e.set)
+    viewer = NuggtYeaNay(imgs, points, e.set,
+                         save_cb=save_cb)
     print(viewer.viewer.get_viewer_url())
     if launch_ui == "new":
         webbrowser.open_new(viewer.viewer.get_viewer_url())
@@ -212,21 +283,26 @@ def main():
         if path is not None:
             img = tifffile.imread(path)
             imgs.append((img, name, shader))
-    if args.no_browser:
-        yea, nay = sort_points(imgs, points)
-    elif args.new_browser_window:
-        yea, nay = sort_points(imgs, points, launch_ui="new")
-    else:
-        yea, nay = sort_points(imgs, points, launch_ui=True)
-    if args.yea_coordinates is not None:
-        yea = yea.astype(points.dtype)
-        with open(args.yea_coordinates, "w") as fd:
-            json.dump(yea.tolist(), fd)
-    if args.nay_coordinates is not None:
-        nay = nay.astype(points.dtype)
-        with open(args.nay_coordinates, "w") as fd:
-            json.dump(nay.tolist(), fd)
 
+    def save_cb(yea, nay):
+        if args.yea_coordinates is not None:
+            yea = yea.astype(points.dtype)
+            with open(args.yea_coordinates, "w") as fd:
+                json.dump(yea.tolist(), fd)
+        if args.nay_coordinates is not None:
+            nay = nay.astype(points.dtype)
+            with open(args.nay_coordinates, "w") as fd:
+                json.dump(nay.tolist(), fd)
+
+    if args.no_browser:
+        yea, nay = sort_points(imgs, points, save_cb=save_cb)
+    elif args.new_browser_window:
+        yea, nay = sort_points(imgs, points, launch_ui="new",
+                               save_cb=save_cb)
+    else:
+        yea, nay = sort_points(imgs, points, launch_ui=True,
+                               save_cb=save_cb)
+    save_cb(yea, nay)
 
 if __name__ == "__main__":
     main()
