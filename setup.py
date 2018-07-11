@@ -25,6 +25,9 @@ setup(
         "tifffile",
         "tqdm"
     ],
+    setup_requires=[
+        "Cython"
+    ],
     author="Kwanghun Chung Lab",
     packages=["nuggt", "nuggt.utils"],
     entry_points={ 'console_scripts': [
