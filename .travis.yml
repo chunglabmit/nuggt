@@ -6,7 +6,7 @@ python:
 before_install:
   - set -e
   - sudo apt-get update -q
-  - set -x; sudo apt-get install -y -q elastix
+  - set -x; sudo apt-get install -y -q python3-simpleitk elastix
 
 install:
   - pip install --upgrade pip
