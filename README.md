@@ -1,5 +1,8 @@
 #NeUroGlancer Ground-Truth: nuggt
 
+[![Travis CI Status](https://travis-ci.org/chunglabmit/nuggt.svg?branch=master)](https://travis-ci.org/chunglabmit/nuggt)
+[![Documentation Status](https://readthedocs.org/projects/nuggt/badge/)](http://phathom.readthedocs.io/en/latest/)
+
 This script uses Neuroglancer to collect
 cell center ground truth for a 3-d cell
 segmentation.

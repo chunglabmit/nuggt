@@ -1,0 +1,27 @@
+language: python
+sudo: required
+python:
+  - 3.5
+
+before_install:
+  - set -e
+  - sudo apt-get update -q
+  - set -x; sudo apt-get install -y -q elastix
+
+install:
+  - pip install --upgrade pip
+  - pip install tornado==4.5.3
+  - pip install --progress-bar off -r requirements.txt
+  - pip install --progress-bar off --editable .
+  - pip install --progress-bar off nose
+
+script:
+  - nosetests tests
+  - count-points-in-region --help
+  - nuggt --help
+  - nuggt-align --help
+  - nuggt-display --help
+  - make-alignment-file --help
+  - rescale-alignment-file --help
+  - sitk-align --help
+  - yea-nay --help
