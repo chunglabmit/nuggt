@@ -25,6 +25,25 @@ Install *nuggt* like this:
 > pip install nuggt
 ```
 
+### Docker
+
+There is a Dockerfile for nuggt. You can build it using
+```commandline
+docker build .
+```
+It takes a while because of SimpleITK / SimpleElastix
+
+An example of how to run the docker container:
+```commandline
+docker run -it --expose 8999 -p 8999:8999/tcp \
+               --network host -v /path/to/images:/images \
+                <container-hash>
+```
+and from within the docker
+```commandline
+nuggt --port 8999 --image /images/myimage.tif --output /images/points.json
+```
+### Running nuggt
 Run *nuggt* like this:
 ```
 > nuggt --image <image-file> --output <points-json-file> [--min-distance <d>]
