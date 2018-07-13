@@ -304,7 +304,7 @@ class NuggtViewer:
         self.display()
 
 def load_one_plane(imgpath, tfpath, x0, x1, y0, y1, z):
-    plane: np.ndarray = tifffile.imread(imgpath)[y0:y1, x0:x1]
+    plane = tifffile.imread(imgpath)[y0:y1, x0:x1]
     height, width = plane.shape
     a = np.memmap(tfpath, dtype=plane.dtype,
                   offset=height * width * z * plane.dtype.itemsize,
