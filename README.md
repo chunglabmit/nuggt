@@ -302,6 +302,55 @@ will be associated with its single region.
 ordered as X, Y and Z. This flag should be specified if the points are from
 **nuggt**.
 
+## rescale-image-for-alignment
+
+**rescale-image-for-alignment** takes a stack of images and scales, transposes
+and rotates it to match an atlas reference file. This command should
+be used to prepare an image for sitk-align which requires that the
+input image be oriented similarly to the atlas.
+
+To run:
+
+```commandline
+rescale-image-for-alignment \
+    --input <input-glob-expression> \
+    --output <output-path> \
+    --atlas-file <atlas-file> \
+    [--x-index <x-index>] \
+    [--y-index <y-index>] \
+    [--z-index <z-index>] \
+    [--flip-x] \
+    [--flip-y] \
+    [--flip-z] \
+    [--clip-x <x-min>,<x-max>] \
+    [--clip-y <y-min>,<y-max>] \
+    [--clip-z <z-min>,<z-max>] \
+    [--thread-count <thread-count>]
+```
+where
+* *<input-glob-expression>* is the glob expression that captures the files in
+the stack. For instance, `--input "/path-to/img_*.tiff"`
+* *<output-path>* is the path and filename of the 3D tiff file to be written.
+* *<atlas-file>* is the atlas file to be used to capture the dimensions for
+the output file
+* *<x-index>* is the index of the X coordinate for the output file in the
+3D stack of the input file (0, 1, or 2). For instance, if the Z coordinate of
+the input file is the X coordinate of the output file, x-index should be "0".
+* *<y-index>* is the index of the Y coordinate for the output file in the
+3D stack of the input file (0, 1, or 2).
+* *<z-index>* is the index of the Z coordinate for the output file in the
+3D stack of the input file (0, 1, or 2).
+* *--flip-x* to flip the image in the X direction
+* *--flip-y* to flip the image in the Y direction
+* *--flip-z* to flip the image in the Z direction
+* *--clip-x <x-min>,<x-max>* to clip the image to the given coordinates in the
+X direction. Clipping can be done to eliminate blank space in the image and
+more closely align it with the atlas reference.
+* *--clip-y <y-min>,<y-max>* to clip the image to the given coordinates in the
+Y direction.
+* *--clip-z <z-min>,<z-max>* to clip the image to the given coordinates in the
+Z direction.
+
 ## rescale-alignment-file
 
 **rescale-alignment-file** takes an alignment file that was generated using

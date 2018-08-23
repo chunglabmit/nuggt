@@ -37,6 +37,7 @@ setup(
         'nuggt-display=nuggt.display_image:main',
         'make-alignment-file=nuggt.make_alignment_file:main',
         'rescale-alignment-file=nuggt.rescale_alignment_file:main',
+        'rescale-image-for-alignment=nuggt.rescale_image_for_alignment:main',
         'sitk-align=nuggt.sitk_align:main',
         'yea-nay=nuggt.yea_nay:main'
     ]},
