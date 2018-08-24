@@ -2,6 +2,9 @@
 
 [![Travis CI Status](https://travis-ci.org/chunglabmit/nuggt.svg?branch=master)](https://travis-ci.org/chunglabmit/nuggt)
 
+![Docker Automated build](https://img.shields.io/docker/automated/chunglabmit/nuggt.svg)
+
+
 This script uses Neuroglancer to collect
 cell center ground truth for a 3-d cell
 segmentation.
@@ -197,7 +200,8 @@ Invoke **sitk-align** like this:
              [--fixed-point-file <fixed-point-file>] \
              [--alignment-point-file <alignment-point-file>] \
              [--aligned-file <aligned-file>]\
-             [--final-grid-spacing <final-grid-spacing>]
+             [--final-grid-spacing <final-grid-spacing>] \
+             [--xyz]
 ```
 where
 * *moving-file* is the path to the moving 3-d image. See SimpleITK for accepted
@@ -217,6 +221,8 @@ It specifies the number of voxels between bspline grid points in the x,
 y and z directions - a higher number results in a more rigid alignment
 whereas a lower number results in more local adaptability to deformation.
 It should be specified as three comma-separated values, e.g. "32,32,32".
+* *--xyz* should be specified if the --alignment-point-file is in XYZ order
+(as it will be if it's produced by **nuggt**)
 
 ## make-alignment-file
 
@@ -381,3 +387,68 @@ rescale-alignment-file \
     [--flip-z]
 
 ```
+
+## Alignment pipeline
+
+One of the purposes of Nuggt is to align a sample image against the mouse
+atlas reference and collect statistics of counts per region. The following
+is a possible workflow. There are four stages to the workflow:
+
+* Create a list of keypoints for the atlas reference image. The keypoints are
+evenly-spaced, easily-identifiable points within the reference image that
+will be used as the initial alignment keypoints in the atlas image. This step
+only needs to be done once for each atlas reference image and the result
+can be used for multiple samples. This is done using **nuggt** to produce
+the file of keypoints.
+
+* Align the sample image to the reference. This involves preparing a downsampled
+image using **rescale-image-for-alignment**, running the automatic alignment
+using **sitk-align** and then refining this alignment using **nuggt-align**.
+Finally, the alignment should be rescaled back to the original image size
+using **rescale-alignment-file**.
+
+* Identify objects of interest (e.g a particular class of neurons). This can
+be done through automated means not covered here or can be done manually using
+**nuggt**.
+
+* Make summary statistics using the atlas. This is done using
+**count-points-in-region**.
+
+If you have an atlas autofluorescence file, 
+"autofluorescence_half_sagittal.tif", an annotation file,
+"annotation_half_sagittal.tif", a listing file giving the correspondences
+between IDs in the annotation file and brain regions, "AllBrainRegions.csv"
+and a sample stack, "sample_stack/img_*.tif",
+the sequence of commands might look like this:
+
+```commandline
+> nuggt --image autofluorescence_half_sagittal.tif \
+        --output coords_half_sagittal.tif
+> # add fiducial points using GUI
+> rescale-image-for-alignment --input "sample_stack/img_*.tif" \
+                              --output moving_img.tif \
+                              --atlas-file autofluorescence_half_sagittal.tif
+> sitk-align --moving-file moving_img.tif \
+             --fixed-file autofluorescence_half_sagittal.tif \
+             --fixed-point-file coords_half_sagittal.tif \
+             --xyz \
+             --alignment-point-file alignment.json
+> nuggt-align --moving-image-file moving_img.tif \
+              --reference-image-file autofluorescence_half_sagittal.tif \
+              --points-file alignment.json
+> # refine the alignment
+> rescale-alignment-file --input alignment.json \
+                         --alignment-image moving_img.tif \
+                         --stack "sample_stack/img_*.tif" \
+                         --output rescaled_alignment.json
+> # Perform some analysis that finds points in the original stack
+  # Assume that the output is "cell_centers.json"
+> count-points-in-region --points cell_centers.json \
+                         --alignment rescaled_alignment.json \
+                         --reference-segmentation annotation_half_sagittal.tif \
+                         --brain-regions-csv AllBrainRegions.csv \
+                         --output analysis.csv
+```
+The result of the analysis will be summarized in analysis.csv as a table
+of brain regions and counts of points that fell into each region.
+ 

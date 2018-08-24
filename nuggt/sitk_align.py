@@ -27,6 +27,11 @@ def parse_args():
     parser.add_argument("--alignment-point-file",
                         help="Path to the file for nuggt-align's initial pts",
                         default=None)
+    parser.add_argument("--xyz",
+                        help="Coordinates in --fixed-point-file are in "
+                        "X, Y, Z form, not Z, Y, X (e.g. the output of nuggt)",
+                        action="store_true",
+                        default=False)
     parser.add_argument("--aligned-file",
                         help="Path to the alignment image file to be written.",
                         default=None)
@@ -200,6 +205,8 @@ def main():
     if alignment_point_file is not None:
         with open(fixed_point_file) as fd:
             points = json.load(fd)
+            if args.xyz:
+                points = [_[::-1] for _ in points]
         out_points = transform(points, moving_image, transform_pm)
         out_points = out_points.astype(float).tolist()
         with open(alignment_point_file, "w") as fd:
