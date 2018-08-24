@@ -2,7 +2,7 @@
 
 [![Travis CI Status](https://travis-ci.org/chunglabmit/nuggt.svg?branch=master)](https://travis-ci.org/chunglabmit/nuggt)
 
-![Docker Automated build](https://img.shields.io/docker/automated/chunglabmit/nuggt.svg)
+[![Docker Automated build](https://img.shields.io/docker/automated/chunglabmit/nuggt.svg)](https://hub.docker.com/r/chunglabmit/nuggt/)
 
 
 This script uses Neuroglancer to collect
@@ -17,7 +17,7 @@ and [here](https://github.com/google/neuroglancer/blob/master/python/README.md)
 
 Start the static content server:
 ```bash
-> npm run dev-server
+> npm run dev-server-python
 ```
 
 Install *nuggt* like this:
