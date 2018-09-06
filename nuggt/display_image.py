@@ -3,14 +3,18 @@
 
 """
 
+
 import argparse
+import json
 import numpy as np
 import tifffile
 import neuroglancer
 import time
 import webbrowser
 from nuggt.utils.ngutils import \
-    layer, gray_shader, red_shader, green_shader, blue_shader, seglayer
+    layer, gray_shader, red_shader, green_shader, blue_shader, seglayer, \
+    pointlayer
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -31,6 +35,8 @@ def main():
                         default=None,
                         help="The URL of the static content source, e.g. "
                         "http://localhost:8080 if being served via npm.")
+    parser.add_argument("--points",
+                        help="A points file in X, Y, Z order to display")
     args = parser.parse_args()
     if args.static_content_source is not None:
         neuroglancer.set_static_content_source(url=args.static_content_source)
@@ -53,6 +59,11 @@ def main():
         if args.segmentation != None:
             seg = tifffile.imread(args.segmentation).astype(np.uint32)
             seglayer(txn, "segmentation", seg)
+        if args.points is not None:
+            with open(args.points) as fd:
+                points = np.array(json.load(fd))
+                pointlayer(txn, "points",
+                           points[:, 0], points[:, 1], points[:, 2], "red")
 
     print(viewer.get_viewer_url())
     webbrowser.open(viewer.get_viewer_url())

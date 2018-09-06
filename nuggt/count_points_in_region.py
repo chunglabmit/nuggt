@@ -31,6 +31,9 @@ def parse_args(args=sys.argv[1:]):
     parser.add_argument("--output",
                         help="The name of the .csv file to be written",
                         required=True)
+    parser.add_argument("--output-points",
+                        help="The name of a points file that will hold the "
+                        "input points transformed into the reference space.")
     parser.add_argument("--level",
                         help="The granularity level (1 to 7 with 7 as the "
                              "finest level. Default is the finest.",
@@ -66,6 +69,13 @@ def main():
     moving_pts = np.array(alignment["moving"])
     ref_pts = np.array(alignment["reference"])
     xform = warp_points(moving_pts, ref_pts, points)
+    if args.output_points is not None:
+        if args.xyz:
+            xformt = xform[:, ::-1]
+        else:
+            xformt = xform
+        with open(args.output_points, "w") as fd:
+            json.dump(xformt.tolist(), fd)
     xform = (xform + .5).astype(int)
     seg = tifffile.imread(args.reference_segmentation).astype(np.uint32)
     mask = np.all((xform >= 0) & (xform < np.array(seg.shape).reshape(1, 3)), 1)

@@ -63,6 +63,47 @@ Commands available in the browser:
 * *shift-s key* - save the points to *points.json*
 * *shift-d key* - delete the point nearest to the cursor
 
+##nuggt-display
+
+**nuggt-display** uses neuroglancer to display one or more 3-d TIF files
+along with an optional segmentation and points file.
+
+Run **nuggt-display** like this:
+
+```commandline
+nuggt-display \
+    <image-file> <name> <color> \
+    ...
+    [<image-file> <name> <color>] \
+    [--segmentation <segmentation>] \
+    [--points <points>] \
+    [--ip-address <ip-address>] \
+    [--port <port>] \
+    [--static-content-source <static-content-source>]
+```
+
+The triplet of <image-file>, <name> and <color> can be repeated
+to display one or more images, each in a different color.
+* **image-file** - the name of a 3D tif file containing the image
+to be displayed
+* **name** - the name to be displayed for that image
+* **color** - the color to use to display the image, one of "red",
+"green", "blue" or "gray"
+* **segmentation** - the name of a 3D tif file containing a segmentation
+to be displayed.
+* **points** - a json file containing a list of 3-tuples of the
+x, y and z coordinate of a point to be displayed
+* **--ip-address** the IP address to bind the webserver to. This
+defaults to *localhost* which is appropriate for local use. Other
+choices are *0.0.0.0* for all NICs on your machine or the IP address
+of your machine on the network.
+* **--port** the port number to bind to. The port number that the server
+binds to. By default, *nuggt-align* uses any available port.
+* **--static-content-source** the URL of the Node server serving the
+static content. Default is to use the Neuroglancer default. If you are
+running `npm run python-dev-server` on your machine, "http://localhost:8080"
+is likely the correct choice
+
 ##yea-nay
 
 **yea-nay** is a tool for quickly separating a list of points into two classes,
@@ -284,7 +325,8 @@ count-points-in-region \
     --brain-regions-csv <brain-regions-file> \
     --output <output-file> \
     [--level <level>] \
-    [--xyz]
+    [--xyz] \
+    [--output-points <output-points-file>]
 ```
 
 where
@@ -300,6 +342,9 @@ then there are three columns in the file, a segment ID, the name and the
 number of cells found in that region. If the level is 1 through 6, then there
 are two columns (the segment ID column will be missing). The file has a header
 that gives the column names, strings are quoted and the counts are not quoted.
+* **output-points-file** *count-points-in-region* will write the input points
+to the *output-points-file*, transformed into the reference space. This
+operation is optional.
 * **level** is the atlas granularity level to be accessed with 7 as the finest
 and 1 as the coarsest. At levels 1 through 6, the counts for segments in
 a particular region will be accumulated together, at level 7, each segment
