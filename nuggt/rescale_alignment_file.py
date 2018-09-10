@@ -61,6 +61,21 @@ def parse_args(args=sys.argv[1:]):
                         "in the z direction after transposing and resizing.",
                         action="store_true",
                         default=False)
+    parser.add_argument("--clip-x",
+                        help="The clipping region that was applied to the "
+                        "original stack in the X direction. This should be "
+                        "in the format, \"<xmin>-<xmax>\" where <xmin> and "
+                        "<xmax> are integers")
+    parser.add_argument("--clip-y",
+                        help="The clipping region that was applied to the "
+                        "original stack in the Y direction. This should be "
+                        "in the format, \"<ymin>-<ymax>\" where <ymin> and "
+                        "<ymax> are integers")
+    parser.add_argument("--clip-z",
+                        help="The clipping region that was applied to the "
+                        "original stack in the Z direction. This should be "
+                        "in the format, \"<zmin>-<zmax>\" where <zmin> and "
+                        "<zmax> are integers")
     return parser.parse_args(args)
 
 def transform(points, alignment_shape, stack_shape,
@@ -97,6 +112,24 @@ def main():
     y_extent, x_extent = tifffile.imread(stackfiles[0]).shape
     z_extent = len(stackfiles)
     stack_shape = [z_extent, y_extent, x_extent]
+    if args.clip_x is not None:
+        xmin, xmax = [int(_) for _ in args.clip_x.split(",")]
+        stack_shape[2] = xmax - xmin
+    else:
+        xmin = 0
+        xmax = x_extent
+    if args.clip_y is not None:
+        ymin, ymax = [int(_) for _ in args.clip_y.split(",")]
+        stack_shape[1] = ymax - ymin
+    else:
+        ymin = 0
+        ymax = y_extent
+    if args.clip_z is not None:
+        zmin, zmax = [int(_) for _ in args.clip_z.split(",")]
+        stack_shape[0] = zmax - zmin
+    else:
+        zmin = 0
+        zmax = z_extent
     alignment_shape = tifffile.imread(args.alignment_image).shape
     with open(args.input) as fd:
         d = json.load(fd)
@@ -110,6 +143,9 @@ def main():
                       flipx=args.flip_x,
                       flipy=args.flip_y,
                       flipz=args.flip_z)
+    xform[:, 0] += zmin
+    xform[:, 1] += ymin
+    xform[:, 2] += xmin
     d["moving"] = xform.tolist()
     with open(args.output, "w") as fd:
         json.dump(d, fd)

@@ -411,6 +411,10 @@ the full-size stack's size and the dimensions of the moving file to scale
 the alignment. If you've transposed the axes, you can correct this using
 the *--x-index*, *--y-index* and *--z-index* switches. If you've flipped axes,
 you can correct this using the *--flip-x*, *--flip-y* and *--flip-z* switches.
+If you clipped any of the axes, you can correct this using 
+*--clip-x*, *--clip-y* and *--clip-z*. The format of these is identical
+to the format used in **rescale-image-for-alignment** and the parameters that
+you used in **rescale-image-for-alignment** should be duplicated here.
 
 If you need to transpose axes, the --x-index, --y-index and --z-index values
 refer to the index (0, 1, or 2) of the x, y and z axes in the alignment file
@@ -429,7 +433,10 @@ rescale-alignment-file \
     [--z-index <z-index>] \
     [--flip-x] \
     [--flip-y] \
-    [--flip-z]
+    [--flip-z] \
+    [--clip-x <xmin>,<xmax>] \
+    [--clip-y <ymin>,<ymax>] \
+    [--clip-z <zmin>,<zmax>]
 
 ```
 
