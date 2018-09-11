@@ -63,7 +63,7 @@ Commands available in the browser:
 * *shift-s key* - save the points to *points.json*
 * *shift-d key* - delete the point nearest to the cursor
 
-##nuggt-display
+## nuggt-display
 
 **nuggt-display** uses neuroglancer to display one or more 3-d TIF files
 along with an optional segmentation and points file.
@@ -482,7 +482,7 @@ the sequence of commands might look like this:
                               --atlas-file autofluorescence_half_sagittal.tif
 > sitk-align --moving-file moving_img.tif \
              --fixed-file autofluorescence_half_sagittal.tif \
-             --fixed-point-file coords_half_sagittal.tif \
+             --fixed-point-file coords_half_sagittal.json \
              --xyz \
              --alignment-point-file alignment.json
 > nuggt-align --moving-image-file moving_img.tif \

@@ -96,7 +96,17 @@ def read_one(filename, x_min, x_max, y_min, y_max, x_scale, y_scale):
 def main(args=sys.argv[1:]):
     params = parse_args(args)
     stack_files = sorted(glob.glob(params.input))
-    atlas_file = tifffile.imread(params.atlas_file)
+    if len(stack_files) == 0:
+        sys.stderr.write(
+            "Unable to find any image files matching the pattern, \"%s\".\n" %
+            params.input)
+        exit(1)
+    try:
+        atlas_file = tifffile.imread(params.atlas_file)
+    except FileNotFoundError:
+        sys.stderr.write("Could not find the atlas file, \"%s\".\n"
+                         % params.atlas_file)
+        exit(1)
     img0 = tifffile.imread(stack_files[0])
     if params.clip_x is None:
         x_min = 0
@@ -159,6 +169,7 @@ def main(args=sys.argv[1:]):
     if params.flip_z:
         img = img[::-1]
     tifffile.imsave(params.output, img)
+
 
 if __name__ == "__main__":
     main()
