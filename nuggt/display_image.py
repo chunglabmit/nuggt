@@ -51,6 +51,7 @@ def main():
             paths = sorted(glob.glob(filename))
             if len(paths) == 0:
                 sys.stderr.write("Could not find any files named %s" % filename)
+                exit(1)
             elif len(paths) == 1:
                 img = tifffile.imread(paths[0]).astype(np.float32)
             else:
