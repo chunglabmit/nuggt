@@ -31,13 +31,15 @@ class NuggtViewer:
     def __init__(self, img_path, alt_img_path, seg_path, points_file,
                  detected_points_file = None,
                  x0=None, x1=None, y0=None, y1=None, z0=None, z1=None,
-                 min_distance=10):
+                 min_distance=10, multiplier=1.0, alt_multiplier=1.0):
         self.viewer = neuroglancer.Viewer()
         self.points_file = points_file
         self.img_path = img_path
         self.alt_img_path=alt_img_path
         self.seg_path=seg_path
         self.min_distance = min_distance
+        self.multiplier = multiplier
+        self.alt_multiplier = alt_multiplier
         if os.path.exists(points_file):
             with open(points_file) as fd:
                 self.points = np.array(json.load(fd))
@@ -50,13 +52,18 @@ class NuggtViewer:
             self.detected_points = None
         self.deleting_points = None
         self.box_coords = None
-        filenames = sorted(glob.glob(img_path))
-        if len(filenames) == 1:
-            self.z_extent, self.y_extent, self.x_extent = \
-                tifffile.imread(filenames[0]).shape
+        if img_path.startswith("precomputed:"):
+            from precomputed_tif.client import get_info
+            scale_1 = get_info(img_path).get_scale(1)
+            self.x_extent, self.y_extent, self.z_extent = scale_1.shape
         else:
-            self.y_extent, self.x_extent = tifffile.imread(filenames[0]).shape
-            self.z_extent = len(filenames)
+            filenames = sorted(glob.glob(img_path))
+            if len(filenames) == 1:
+                self.z_extent, self.y_extent, self.x_extent = \
+                    tifffile.imread(filenames[0]).shape
+            else:
+                self.y_extent, self.x_extent = tifffile.imread(filenames[0]).shape
+                self.z_extent = len(filenames)
         if x0 is not None and x1 is not None:
             self.width = x1 - x0
             self.x0 = x0
@@ -119,19 +126,26 @@ class NuggtViewer:
                  (self.z0 + self.z1) / 2)
 
     def display(self):
-        img = load_image(self.img_path, self.x0, self.x1, self.y0, self.y1,
-                         self.z0, self.z1)
+        if self.img_path.startswith("precomputed:"):
+            img = self.img_path
+        else:
+            img = load_image(self.img_path, self.x0, self.x1, self.y0, self.y1,
+                             self.z0, self.z1)
         if self.alt_img_path is not None:
-            alt_img = load_image(self.alt_img_path, self.x0, self.x1,
-                                 self.y0, self.y1, self.z0, self.z1)
+            if self.alt_img_path.startswith("precomputed:"):
+                alt_img = self.alt_img_path
+            else:
+                alt_img = load_image(self.alt_img_path, self.x0, self.x1,
+                                     self.y0, self.y1, self.z0, self.z1)
         if self.seg_path is not None:
             seg = load_image(self.seg_path, self.x0, self.x1,
                              self.y0, self.y1, self.z0, self.z1)
         with self.viewer.txn() as txn:
-            layer(txn, "image", img, gray_shader, 1.0,
+            layer(txn, "image", img, gray_shader, self.multiplier,
                   self.x0, self.y0, self.z0)
             if self.alt_img_path is not None:
-                layer(txn, "alt-image", alt_img, green_shader, 1.0,
+                layer(txn, "alt-image", alt_img, green_shader,
+                      self.alt_multiplier,
                       self.x0, self.y0, self.z0)
             if self.seg_path is not None:
                 seglayer(txn, "segmentation", seg, self.x0, self.y0, self.z0)
@@ -189,6 +203,12 @@ class NuggtViewer:
             "annotation")
 
     def find_nearby_points(self, point, return_index=False):
+        if len(self.points) == 0:
+            if return_index:
+                return np.zeros((0, 3), np.float32), np.zeros(0, int)
+            else:
+                return np.zeros((0, 3), np.float32)
+
         diff = self.points - point[np.newaxis, :]
         distances = np.sqrt(np.sum(np.square(diff), 1))
         indexes = np.where(distances < self.min_distance)[0]
@@ -426,6 +446,15 @@ def main():
                         help="This file saves a record of the coordinates "
                         "of each repositioning in order to keep track of "
                         "which areas have been visited.")
+    parser.add_argument("--multiplier",
+                        default=1.0,
+                        type=float,
+                        help="Multiplier for the image. Higher = brighter.")
+    parser.add_argument("--alt-multiplier",
+                        default=1.0,
+                        type=float,
+                        help="Multiplier for the alternate image. "
+                        "Higher=brighter")
     args = parser.parse_args()
     neuroglancer.set_server_bind_address(args.bind_address, bind_port=args.port)
     if args.static_content_source is not None:
@@ -439,14 +468,18 @@ def main():
                              args.output,
                              args.detected,
                              x0, x1, y0, y1, z0, z1,
-                             min_distance=args.min_distance)
+                             min_distance=args.min_distance,
+                             multiplier=args.multiplier,
+                             alt_multiplier=args.alt_multiplier)
     else:
         viewer = NuggtViewer(args.image,
                              args.alt_image,
                              args.segmentation,
                              args.output,
                              args.detected,
-                             min_distance=args.min_distance)
+                             min_distance=args.min_distance,
+                             multiplier=args.multiplier,
+                             alt_multiplier=args.alt_multiplier)
 
     print("Editing viewer: %s" % viewer.viewer.get_viewer_url())
     webbrowser.open_new(viewer.viewer.get_viewer_url())
