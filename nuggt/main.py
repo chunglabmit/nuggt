@@ -31,7 +31,8 @@ class NuggtViewer:
     def __init__(self, img_path, alt_img_path, seg_path, points_file,
                  detected_points_file = None,
                  x0=None, x1=None, y0=None, y1=None, z0=None, z1=None,
-                 min_distance=10, multiplier=1.0, alt_multiplier=1.0):
+                 min_distance=10, multiplier=1.0, alt_multiplier=1.0,
+                 box_coords=None):
         self.viewer = neuroglancer.Viewer()
         self.points_file = points_file
         self.img_path = img_path
@@ -52,6 +53,7 @@ class NuggtViewer:
             self.detected_points = None
         self.deleting_points = None
         self.box_coords = None
+        self.bounding_box = box_coords
         if img_path.startswith("precomputed:"):
             from precomputed_tif.client import get_info
             scale_1 = get_info(img_path).get_scale(1)
@@ -163,9 +165,20 @@ class NuggtViewer:
 
             if self.box_coords is not None:
                 self.display_bounding_box(txn)
+            if self.bounding_box is not None:
+                box = neuroglancer.AxisAlignedBoundingBoxAnnotation()
+                box.point_a = self.bounding_box[0]
+                box.point_b = self.bounding_box[1]
+                box.id = "bounding-box"
+                txn.layers["bounding-box"] = neuroglancer.AnnotationLayer(
+                    annotations=[box])
+                txn.position.voxel_coordinates = \
+                    [(a + b) / 2 for a, b in zip(*self.bounding_box)]
+
             elif has_layer(txn, "selection"):
                 del txn.layers["selection"]
-        self.center()
+        if self.bounding_box is None:
+            self.center()
 
     def display_bounding_box(self, txn):
         box = neuroglancer.AxisAlignedBoundingBoxAnnotation()
@@ -419,6 +432,11 @@ def main():
                         "(x0,x1,y0,y1,z0,z1). "
                         "Example: \"1000,2000,4000,5000,300,500\" to edit"
                         "x=1000 to 2000, y=4000 to 5000, z=300 to 500.")
+    parser.add_argument("--box-coordinates",
+                        help="Coordinates of the bounding box to display. "
+                        "Example: \"1000,2000,4000,5000,300,500\" to edit "
+                        "x=1000 to 2000, y=4000 to 5000, z=300 to 500",
+                        default=None)
     parser.add_argument("--bind-address",
                         help="The IP address to bind to as a webserver. "
                         "The default is 127.0.0.1 which is constrained to "
@@ -457,6 +475,11 @@ def main():
                         "Higher=brighter")
     args = parser.parse_args()
     neuroglancer.set_server_bind_address(args.bind_address, bind_port=args.port)
+    if args.box_coordinates is None:
+        box_coordinates = None
+    else:
+        box_coordinates = list(map(int, args.box_coordinates.split(",")))
+        box_coordinates = [box_coordinates[::2], box_coordinates[1::2]]
     if args.static_content_source is not None:
         neuroglancer.set_static_content_source(url=args.static_content_source)
 
@@ -470,7 +493,8 @@ def main():
                              x0, x1, y0, y1, z0, z1,
                              min_distance=args.min_distance,
                              multiplier=args.multiplier,
-                             alt_multiplier=args.alt_multiplier)
+                             alt_multiplier=args.alt_multiplier,
+                             box_coords=box_coordinates)
     else:
         viewer = NuggtViewer(args.image,
                              args.alt_image,
@@ -479,7 +503,8 @@ def main():
                              args.detected,
                              min_distance=args.min_distance,
                              multiplier=args.multiplier,
-                             alt_multiplier=args.alt_multiplier)
+                             alt_multiplier=args.alt_multiplier,
+                             box_coords=box_coordinates)
 
     print("Editing viewer: %s" % viewer.viewer.get_viewer_url())
     webbrowser.open_new(viewer.viewer.get_viewer_url())
