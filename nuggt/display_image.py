@@ -48,14 +48,6 @@ def main():
         for filename, name, colorname in zip(args.files_and_colors[::3],
                                              args.files_and_colors[1::3],
                                              args.files_and_colors[2::3]):
-            paths = sorted(glob.glob(filename))
-            if len(paths) == 0:
-                sys.stderr.write("Could not find any files named %s" % filename)
-                exit(1)
-            elif len(paths) == 1:
-                img = tifffile.imread(paths[0]).astype(np.float32)
-            else:
-                img = np.array([tifffile.imread(_) for _ in paths], np.float32)
             if colorname.lower() == "red":
                 shader = red_shader
             elif colorname.lower() == "green":
@@ -64,6 +56,20 @@ def main():
                 shader = blue_shader
             else:
                 shader = gray_shader
+            if filename.startswith("precomputed://"):
+                txn.layers[name] = neuroglancer.ImageLayer(
+                    source = filename,
+                    shader = shader % 1.0
+                )
+                continue
+            paths = sorted(glob.glob(filename))
+            if len(paths) == 0:
+                sys.stderr.write("Could not find any files named %s" % filename)
+                exit(1)
+            elif len(paths) == 1:
+                img = tifffile.imread(paths[0]).astype(np.float32)
+            else:
+                img = np.array([tifffile.imread(_) for _ in paths], np.float32)
             layer(txn, name, img, shader, 1.0)
         if args.segmentation != None:
             seg = tifffile.imread(args.segmentation).astype(np.uint32)
