@@ -249,6 +249,9 @@ def main():
                         help="A JSON file of input coordinates as a list of "
                         "three-tuples in X, Y, Z order",
                         required=True)
+    parser.add_argument("--xyz",
+                        action="store_true",
+                        help="Points are stored in x, y, z order")
     parser.add_argument("--yea-coordinates",
                         help="The name of a JSON file to be written with "
                         "the coordinates of \"yea\" points.")
@@ -273,6 +276,8 @@ def main():
 
     with open(args.input_coordinates) as fd:
         points = np.array(json.load(fd))
+    if args.xyz:
+        points = points[:, ::-1]
 
     imgs = []
     for path, name, shader in (
@@ -287,10 +292,14 @@ def main():
     def save_cb(yea, nay):
         if args.yea_coordinates is not None:
             yea = yea.astype(points.dtype)
+            if args.xyz:
+                yea = yea[:, ::-1]
             with open(args.yea_coordinates, "w") as fd:
                 json.dump(yea.tolist(), fd)
         if args.nay_coordinates is not None:
             nay = nay.astype(points.dtype)
+            if args.xyz:
+                nay = nay[:, ::-1]
             with open(args.nay_coordinates, "w") as fd:
                 json.dump(nay.tolist(), fd)
 
