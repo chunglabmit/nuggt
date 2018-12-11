@@ -14,15 +14,17 @@ import sys
 import time
 import webbrowser
 from nuggt.utils.ngutils import \
-    layer, gray_shader, red_shader, green_shader, blue_shader, seglayer, \
-    pointlayer
+    gray_shader, red_shader, green_shader, blue_shader, jet_shader, \
+    cubehelix_shader, \
+    layer, seglayer, pointlayer
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("files_and_colors", nargs="+",
                         help="File name followed by display name followed by"
-                        "\"red\", \"green\", \"blue\" or \"gray\".")
+                        "\"red\", \"green\", \"blue\", \"gray\", "
+                        "\"jet\" or \"cubehelix\".")
     parser.add_argument("--segmentation",
                         default=None,
                         help="Segmentation volume to display")
@@ -54,8 +56,12 @@ def main():
                 shader = green_shader
             elif colorname.lower() == "blue":
                 shader = blue_shader
-            else:
+            elif colorname.lower() in ("gray", "grey"):
                 shader = gray_shader
+            elif colorname.lower() == "jet":
+                shader = jet_shader
+            elif colorname.lower() == "cubehelix":
+                shader = cubehelix_shader
             if filename.startswith("precomputed://"):
                 txn.layers[name] = neuroglancer.ImageLayer(
                     source = filename,

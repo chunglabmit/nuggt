@@ -34,6 +34,40 @@ void main() {
 }
 """
 
+"""A shader that displays an image using the classic Jet colormap"""
+jet_shader = """
+
+void main() {
+  float x = clamp(toNormalized(getDataValue()) * %f, 0.0, 1.0);
+  vec3 result;
+  result.r = x < 0.89 ? ((x - 0.35) / 0.31) : (1.0 - (x - 0.89) / 0.11 * 0.5);
+  result.g = x < 0.64 ? ((x - 0.125) * 4.0) : (1.0 - (x - 0.64) / 0.27);
+  result.b = x < 0.34 ? (0.5 + x * 0.5 / 0.11) : (1.0 - (x - 0.34) / 0.31);
+   emitRGB(result);
+}
+"""
+
+"""A shader for the cubehelix color scheme
+"""
+#
+# Code borrowed in part from
+# https://www.mrao.cam.ac.uk/~dag/CUBEHELIX/CubeHelix.m
+#
+cubehelix_shader = """
+void main() {
+    float x = clamp(toNormalized(getDataValue()) * %f, 0.0, 1.0);
+    float angle = 2.0 * 3.1415926 * (4.0 / 3.0 + x);
+    float amp = x * (1.0 - x) / 2.0;
+    vec3 result;
+    float cosangle = cos(angle);
+    float sinangle = sin(angle);
+    result.r = -0.14861 * cosangle + 1.78277 * sinangle;
+    result.g = -0.29227 * cosangle + -0.90649 * sinangle;
+    result.b = 1.97294 * cosangle;
+    result = clamp(x + amp * result, 0.0, 1.0);
+    emitRGB(result);
+}
+"""
 #
 # Monkey-patch Neuroglancer to control the color of the annotation dots
 #
@@ -112,6 +146,26 @@ def pointlayer(txn, name, x, y, z, color):
         points=np.column_stack((x, y, z)),
         annotation_color=color
     )
+
+
+def bboxlayer(txn, name, x0, x1, y0, y1, z0, z1):
+    """Add a bounding box layer
+
+    :param txn: the neuroglancer viewer transaction context
+    :param name: the name of the layer
+    :param x0: the leftmost edge of the box
+    :param x1: the rightmost edge of the box
+    :param y0: the topmost edge of the box
+    :param y1: the bottommoste edge of the box
+    :param z0: the most shallow depth of the box
+    :param z1: the deepest edge of the box
+    """
+    box = neuroglancer.AxisAlignedBoundingBoxAnnotation()
+    box.point_a = [x0, y0, z0]
+    box.point_b = [x1, y1, z1]
+    box.id = name
+    txn.layers[name] = neuroglancer.AnnotationLayer(annotations=[box])
+
 
 def has_layer(txn, name):
     """Return true if the viewer state has a layer with the given name
