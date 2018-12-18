@@ -32,6 +32,7 @@ setup(
     packages=["nuggt", "nuggt.utils"],
     entry_points={ 'console_scripts': [
         'count-points-in-region=nuggt.count_points_in_region:main',
+        'crop-coordinates=nuggt.crop_coordinates:main',
         'nuggt=nuggt.main:main',
         'nuggt-align=nuggt.align:main',
         'nuggt-display=nuggt.display_image:main',

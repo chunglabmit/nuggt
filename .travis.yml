@@ -29,6 +29,7 @@ install:
 script:
   - nosetests tests
   - count-points-in-region --help
+  - crop-coordinates --help
   - nuggt --help
   - nuggt-align --help
   - nuggt-display --help
