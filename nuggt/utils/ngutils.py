@@ -52,6 +52,7 @@ void main() {
 #
 # Code borrowed in part from
 # https://www.mrao.cam.ac.uk/~dag/CUBEHELIX/CubeHelix.m
+# published under the Unlicense: (http://unlicense.org/)
 #
 cubehelix_shader = """
 void main() {
