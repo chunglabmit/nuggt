@@ -31,6 +31,7 @@ setup(
     author="Kwanghun Chung Lab",
     packages=["nuggt", "nuggt.utils"],
     entry_points={ 'console_scripts': [
+        'calculate-intensity-in-regions=nuggt.calculate_intensity_in_regions:main',
         'count-points-in-region=nuggt.count_points_in_region:main',
         'crop-coordinates=nuggt.crop_coordinates:main',
         'nuggt=nuggt.main:main',
