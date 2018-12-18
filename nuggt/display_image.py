@@ -60,7 +60,7 @@ def main():
                 shader = gray_shader
             elif colorname.lower() == "jet":
                 shader = jet_shader
-            elif colorname.lower() == "cubehelix":
+            else:
                 shader = cubehelix_shader
             if filename.startswith("precomputed://"):
                 txn.layers[name] = neuroglancer.ImageLayer(
