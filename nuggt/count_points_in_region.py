@@ -104,8 +104,7 @@ def main():
             level = br.get_level_name(seg_id, args.level)
             if level in d:
                 count += d[level]
-            else:
-                d[level] = count
+            d[level] = count
         with open(args.output, "w") as fd:
             fd.write('"region","count"\n')
             for level in sorted(d):
