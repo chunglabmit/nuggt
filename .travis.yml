@@ -27,7 +27,7 @@ install:
   - pip install --progress-bar off nose
 
 script:
-  - nosetests tests --ignore-files="tests/test_calculate_intensity_in_regions.py"
+  - nosetests tests --ignore-files="test_calculate_intensity_in_regions.py"
   - count-points-in-region --help
   - crop-coordinates --help
   - nuggt --help
