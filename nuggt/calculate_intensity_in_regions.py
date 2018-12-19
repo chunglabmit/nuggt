@@ -42,24 +42,61 @@ def parse_args(args=sys.argv[1:]):
                         type=int,
                         default=os.cpu_count(),
                         help="The number of processes to use")
+    parser.add_argument("--shrink",
+                        type=int,
+                        default=1,
+                        help="How much to downsample the image coordinates "
+                        "when transforming them to the segmentation "
+                        "coordinate system.")
+    parser.add_argument("--grid-size",
+                        type=int,
+                        default=100,
+                        help="The number of knots in the bicubic spline grid "
+                        "(in the x and y directions) used to approximate the "
+                        "transformation")
+
     return parser.parse_args(args)
 
 
-def do_plane(filename:str, z:int, segmentation: SharedMemory, warper:Warper):
+def do_plane(filename:str, z:int, segmentation: SharedMemory, warper:Warper,
+             shrink=(1, 1), grid_size=(100, 100)):
     """Process one plane
 
     :param filename: the name of the tiff file holding the plane
     :param z: The z-coordinate of the tiff file
     :param segmentation: the shared-memory holder of the segmentation.
+    :param shrink: The factor to shrink the warping in the y and x direction
+    :param grid_size: the number of voxels between knots in the bspline grid
     :return: a two tuple of the counts per region and total intensities per
     region.
     """
+    if np.isscalar(shrink):
+        shrink = (shrink, shrink, shrink)
+    if np.isscalar(grid_size):
+        grid_size = (grid_size, grid_size)
     plane = tifffile.imread(filename)
+    #
+    # zz, yy and xx are the coordinates that we will convert via the warper.
+    # We subsample to reduce the runtime and because the segmentation is
+    # so much smaller than the image that subsampling has little effect on
+    # accuracy.
+    #
     zz, yy, xx = [_.flatten() for _ in
-                  np.mgrid[z:z+1, 0:plane.shape[0], 0:plane.shape[1]]]
-    awarper = warper.approximate(np.array([z-1, z, z+1]),
-                                 np.linspace(0, plane.shape[0] - 1, 100),
-                                 np.linspace(0, plane.shape[1] - 1, 100))
+                  np.mgrid[z:z+1,
+                           0:plane.shape[0]:shrink[0],
+                           0:plane.shape[1]:shrink[1]]]
+    yyy, xxx = np.mgrid[0:plane.shape[0],
+                        0:plane.shape[1]]
+    #
+    # yyy and xxx are the translations from the dimensions of the plane to
+    # the dimensions of the zz, yy, xx.
+    #
+    yyy = (yyy // shrink[0]).astype(np.uint32)
+    xxx = (xxx // shrink[1]).astype(np.uint32)
+    awarper = warper.approximate(
+        np.array([z-1, z, z+1]),
+        np.linspace(0, plane.shape[0] - 1, grid_size[0]),
+        np.linspace(0, plane.shape[1] - 1, grid_size[1]))
     zseg, yseg, xseg = awarper(np.column_stack((zz, yy, xx))).transpose()
     zseg = np.round(zseg).astype(np.int32)
     yseg = np.round(yseg).astype(np.int32)
@@ -70,9 +107,14 @@ def do_plane(filename:str, z:int, segmentation: SharedMemory, warper:Warper):
     with segmentation.txn() as m:
         send = np.max(m) + 1
         seg = m[zseg[mask], yseg[mask], xseg[mask]]
-        counts = np.bincount(seg, minlength=send)
-        sums = np.bincount(seg, plane.flatten()[mask].astype(np.int64),
-                           minlength=send)
+    orig_shape = ((plane.shape[0] + shrink[0] - 1) // shrink[0],
+                  (plane.shape[1] + shrink[1] - 1) // shrink[1])
+    oseg = np.zeros(orig_shape, seg.dtype)
+    oseg[mask.reshape(orig_shape)] = seg
+    seg = oseg[yyy, xxx]
+    counts = np.bincount(seg.flatten(), minlength=send)
+    sums = np.bincount(seg.flatten(), plane.flatten().astype(np.int64),
+                       minlength=send).astype(np.int64)
     return counts, sums
 
 
@@ -86,14 +128,15 @@ def main(args=sys.argv[1:]):
                                    segmentation.dtype)
     with sm_segmentation.txn() as m:
         m[:] = segmentation
-    files = glob.glob(args.input)
+    files = sorted(glob.glob(args.input))
     if len(files) == 0:
         raise IOError("Failed to find any files matching %s" % args.input)
     total_counts = np.zeros(np.max(segmentation) + 1, np.int64)
     total_sums = np.zeros(np.max(segmentation) + 1, np.int64)
     if args.n_cores == 1:
         for z, filename in tqdm.tqdm(enumerate(files), total=len(files)):
-            c, s = do_plane(filename, z, sm_segmentation, warper)
+            c, s = do_plane(filename, z, sm_segmentation, warper,
+                            shrink=args.shrink, grid_size=args.grid_size)
             total_counts += c
             total_sums += s
     else:
@@ -102,7 +145,8 @@ def main(args=sys.argv[1:]):
             for z, filename in enumerate(files):
                 future = pool.apply_async(
                     do_plane,
-                    (filename, z, sm_segmentation, warper))
+                    (filename, z, sm_segmentation, warper, args.shrink,
+                     args.grid_size))
                 futures.append(future)
 
             for future in tqdm.tqdm(futures):
