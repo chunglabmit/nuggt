@@ -170,6 +170,62 @@ class TestMain(unittest.TestCase):
             self.assertEqual(int(line_2[3]), img[5, 7, 7])
             self.assertEqual(float(line_2[4]), img[5, 7, 7])
 
+    def test_level_5(self):
+        with named_temporary_dir() as img_path, \
+             tempfile.NamedTemporaryFile(suffix=".tiff") as seg_path, \
+             tempfile.NamedTemporaryFile(suffix=".json") as align_path, \
+             tempfile.NamedTemporaryFile(suffix=".csv") as brain_regions_path, \
+             tempfile.NamedTemporaryFile(suffix=".csv") as out_path:
+            img = np.random.RandomState(1234).randint(1, 65535, (10, 10, 10))
+            for i in range(10):
+                tifffile.imsave(os.path.join(img_path, "img_%04d.tiff" % i),
+                                img[i])
+            seg = np.zeros((10, 10, 10), np.uint16)
+            seg[5, 3, 3] = 1
+            seg[5, 7, 7] = 2
+            tifffile.imsave(seg_path.name, seg)
+            xform = [[0, 0, 0],
+                     [0, 10, 0],
+                     [0, 0, 10],
+                     [0, 10, 10],
+                     [5, 3, 3],
+                     [5, 7, 7],
+                     [10, 0, 0],
+                     [10, 10, 0],
+                     [10, 0, 10],
+                     [10, 10, 10]]
+            with open(brain_regions_path.name, "w") as fd:
+                fd.write('id,counts,density,name,acronym\n')
+                fd.write("0,98,98,b'background',b'background',b'background',"
+                         "b'background',b'background',b'background',"
+                         "b'background'\n")
+                fd.write("1,1,1,b'region_1',b'foreground',b'foreground',"
+                         "b'foreground',b'foreground',b'foreground',"
+                         "b'foreground'\n")
+                fd.write("2,1,1,b'region_2',b'foreground',b'foreground',"
+                         "b'foreground',b'foreground',b'foreground',"
+                         "b'foreground'\n")
+            with open(align_path.name, "w") as fd:
+                json.dump(dict(moving=xform, reference=xform), fd)
+            main(["--input", os.path.join(img_path, "img_*.tiff",),
+                  "--alignment", align_path.name,
+                  "--reference-segmentation", seg_path.name,
+                  "--brain-regions-csv", brain_regions_path.name,
+                  "--output", out_path.name,
+                  "--level", "5"])
+            with open(out_path.name, "r") as fd:
+                header = fd.readline()
+                line_0 = fd.readline().split(",")
+                line_1 = fd.readline().split(",")
+            self.assertEqual(line_0[0][1:-1], "background")
+            self.assertEqual(line_0[1], "998")
+            self.assertAlmostEqual(float(line_0[3]), int(line_0[2]) / 998, 0)
+            self.assertEqual(line_1[0][1:-1], "foreground")
+            self.assertEqual(line_1[1], "2")
+            self.assertEqual(int(line_1[2]), img[5, 3, 3] + img[5, 7, 7])
+            self.assertEqual(
+                float(line_1[3]), (img[5, 3, 3] + img[5, 7, 7]) / 2)
+
 
 if __name__ == '__main__':
     unittest.main()

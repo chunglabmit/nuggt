@@ -195,7 +195,7 @@ def main(args=sys.argv[1:]):
                 d[level][0] += count
                 d[level][1] += intensity
             else:
-                d[level] = (count, intensity)
+                d[level] = [count, intensity]
         with open(args.output, "w") as fd:
             fd.write('"region","area", "total_intensity","mean_intensity"\n')
             for level in sorted(d):
