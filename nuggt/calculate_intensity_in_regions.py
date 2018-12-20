@@ -42,12 +42,13 @@ def parse_args(args=sys.argv[1:]):
                         required=True)
     parser.add_argument("--output",
                         help="The name of the .csv file to be written",
+                        action="append",
                         required=True)
     parser.add_argument("--level",
+                        type=int,
                         help="The granularity level (1 to 7 with 7 as the "
                              "finest level. Default is the finest.",
-                        type=int,
-                        default=7)
+                        action="append")
     parser.add_argument("--n-cores",
                         type=int,
                         default=os.cpu_count(),
@@ -130,6 +131,9 @@ def do_plane(filename:str, z:int, segmentation: SharedMemory, warper:Warper,
 
 def main(args=sys.argv[1:]):
     args = parse_args(args)
+    levels = args.level
+    while len(levels) < len(args.output):
+        levels.append(7)
     alignment = json.load(open(args.alignment))
     warper = Warper(alignment["moving"], alignment["reference"])
     segmentation = tifffile.imread(args.reference_segmentation)\
@@ -172,39 +176,40 @@ def main(args=sys.argv[1:]):
     total_intensities_per_id = total_sums[seg_ids]
     mean_intensity_per_id = \
         total_intensities_per_id.astype(float) / counts_per_id
-    if args.level == 7:
-        with open(args.output, "w") as fd:
-            fd.write(
-                '"id","region","area","total_intensity","mean_intensity"\n')
-            for seg_id, count, total_intensity, mean_intensity in zip(
-                    seg_ids, counts_per_id, total_intensities_per_id,
-                    mean_intensity_per_id):
-                if seg_id == 0:
-                    region = "not in any region"
+    for level, output in zip(levels, args.output):
+        if level == 7:
+            with open(output, "w") as fd:
+                fd.write(
+                    '"id","region","area","total_intensity","mean_intensity"\n')
+                for seg_id, count, total_intensity, mean_intensity in zip(
+                        seg_ids, counts_per_id, total_intensities_per_id,
+                        mean_intensity_per_id):
+                    if seg_id == 0:
+                        region = "not in any region"
+                    else:
+                        region = br.name_per_id.get(seg_id, "id%d" % seg_id)
+                    fd.write('%d,"%s",%d, %d, %.2f\n' %
+                             (seg_id, region, count, total_intensity,
+                              mean_intensity))
+        else:
+            d = {}
+            for seg_id, count, intensity in zip(
+                    seg_ids, counts_per_id, total_intensities_per_id):
+                try:
+                    l = br.get_level_name(seg_id, level)
+                except KeyError:
+                    l = "region_%d" % seg_id
+                if l in d:
+                    d[l][0] += count
+                    d[l][1] += intensity
                 else:
-                    region = br.name_per_id.get(seg_id, "id%d" % seg_id)
-                fd.write('%d,"%s",%d, %d, %.2f\n' %
-                         (seg_id, region, count, total_intensity,
-                          mean_intensity))
-    else:
-        d = {}
-        for seg_id, count, intensity in zip(
-                seg_ids, counts_per_id, total_intensities_per_id):
-            try:
-                level = br.get_level_name(seg_id, args.level)
-            except KeyError:
-                level = "region_%d" % seg_id
-            if level in d:
-                d[level][0] += count
-                d[level][1] += intensity
-            else:
-                d[level] = [count, intensity]
-        with open(args.output, "w") as fd:
-            fd.write('"region","area", "total_intensity","mean_intensity"\n')
-            for level in sorted(d):
-                fd.write('"%s",%d,%d,%.2f\n' %
-                         (level, d[level][0], d[level][1],
-                          d[level][1] / d[level][0]))
+                    d[l] = [count, intensity]
+            with open(output, "w") as fd:
+                fd.write('"region","area", "total_intensity","mean_intensity"\n')
+                for l in sorted(d):
+                    fd.write('"%s",%d,%d,%.2f\n' %
+                             (l, d[l][0], d[l][1],
+                              d[l][1] / d[l][0]))
 
 
 if __name__=="__main__":
