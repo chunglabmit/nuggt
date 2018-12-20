@@ -190,7 +190,10 @@ def main(args=sys.argv[1:]):
         d = {}
         for seg_id, count, intensity in zip(
                 seg_ids, counts_per_id, total_intensities_per_id):
-            level = br.get_level_name(seg_id, args.level)
+            try:
+                level = br.get_level_name(seg_id, args.level)
+            except KeyError:
+                level = "region_%d" % seg_id
             if level in d:
                 d[level][0] += count
                 d[level][1] += intensity
