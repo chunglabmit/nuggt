@@ -10,6 +10,16 @@ import tqdm
 
 from phathom.utils import SharedMemory
 
+#
+# Turn off MKL multiprocessing if installed:
+# http://mvdoc.me/2017/disabling-multithreading-for-numpy-scikit-learn-etc-in-conda.html
+#
+try:
+    import mkl
+    mkl.set_num_threads(1)
+except:
+    pass
+
 from .brain_regions import BrainRegions
 from nuggt.utils.warp import Warper
 
