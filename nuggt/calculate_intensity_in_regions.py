@@ -205,7 +205,7 @@ def main(args=sys.argv[1:]):
                 else:
                     d[l] = [count, intensity]
             with open(output, "w") as fd:
-                fd.write('"region","area", "total_intensity","mean_intensity"\n')
+                fd.write('"region","area","total_intensity","mean_intensity"\n')
                 for l in sorted(d):
                     fd.write('"%s",%d,%d,%.2f\n' %
                              (l, d[l][0], d[l][1],
