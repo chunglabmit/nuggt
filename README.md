@@ -213,6 +213,10 @@ transform). You can place a point in the reference view, press *shift-t*, and
 then see and edit its location in the moving view to correct the warp.
 * *shift-w* - warp the moving layer's image to the reference layer using the
 point correspondences.
+* *shift-equals (plus)* - make the moving image brighter.
+* *minus* - make the moving image dimmer.
+* *alt-shift-equals* - make the reference image brighter.
+* *alt-minus* - make the reference image dimmer.
 
 ## SITK-ALIGN
 

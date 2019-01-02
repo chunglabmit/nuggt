@@ -95,11 +95,15 @@ class ViewerPair:
     SEGMENTATION = "segmentation"
 
     ANNOTATE_ACTION = "annotate"
+    BRIGHTER_ACTION = "brighter"
+    DIMMER_ACTION = "dimmer"
     CLEAR_ACTION = "clear"
     DONE_ACTION = "done-with-point"
     EDIT_ACTION = "edit"
     NEXT_ACTION = "next"
     PREVIOUS_ACTION = "previous"
+    REFERENCE_BRIGHTER_ACTION = "reference-brighter"
+    REFERENCE_DIMMER_ACTION = "reference-dimmer"
     REFRESH_ACTION = "refresh-view"
     REDO_ACTION = "redo"
     SAVE_ACTION = "save-points"
@@ -107,11 +111,15 @@ class ViewerPair:
     UNDO_ACTION = "undo"
     WARP_ACTION = "warp"
 
+    BRIGHTER_KEY = "shift+equal"
     CLEAR_KEY = "shift+keyc"
+    DIMMER_KEY = "minus"
     DONE_KEY = "shift+keyd"
     EDIT_KEY = "shift+keye"
     NEXT_KEY = "shift+keyn"
     PREVIOUS_KEY = "shift+keyp"
+    REFERENCE_BRIGHTER_KEY = "shift+alt+equal"
+    REFERENCE_DIMMER_KEY = "alt+minus"
     REFRESH_KEY = "shift+keyr"
     SAVE_KEY = "shift+keys"
     REDO_KEY = "control+keyy"
@@ -174,6 +182,8 @@ void main() {
         self.warper = None
         self.reference_voxel_size = reference_voxel_size
         self.moving_voxel_size = moving_voxel_size
+        self.reference_brightness = 1.0
+        self.moving_brightness = 1.0
         self.load_points()
         self.init_state()
 
@@ -232,11 +242,17 @@ void main() {
         :param on_edit: the function to execute when the user wants to edit
         """
         viewer.actions.add(self.ANNOTATE_ACTION, on_annotate)
+        viewer.actions.add(self.BRIGHTER_ACTION, self.on_brighter)
         viewer.actions.add(self.CLEAR_ACTION, self.on_clear)
+        viewer.actions.add(self.DIMMER_ACTION, self.on_dimmer)
         viewer.actions.add(self.DONE_ACTION, self.on_done)
         viewer.actions.add(self.EDIT_ACTION, self.on_edit)
         viewer.actions.add(self.NEXT_ACTION, self.on_next)
         viewer.actions.add(self.PREVIOUS_ACTION, self.on_previous)
+        viewer.actions.add(self.REFERENCE_BRIGHTER_ACTION,
+                           self.on_reference_brighter)
+        viewer.actions.add(self.REFERENCE_DIMMER_ACTION,
+                           self.on_reference_dimmer)
         viewer.actions.add(self.REFRESH_ACTION, self.on_refresh)
         viewer.actions.add(self.SAVE_ACTION, self.on_save)
         viewer.actions.add(self.REDO_ACTION, self.on_redo)
@@ -249,11 +265,17 @@ void main() {
             viewer.actions.add(self.TRANSLATE_ACTION, self.on_translate)
         with viewer.config_state.txn() as s:
             bindings_viewer = s.input_event_bindings.viewer
+            bindings_viewer[self.BRIGHTER_KEY] = self.BRIGHTER_ACTION
             bindings_viewer[self.CLEAR_KEY] = self.CLEAR_ACTION
+            bindings_viewer[self.DIMMER_KEY] = self.DIMMER_ACTION
             bindings_viewer[self.DONE_KEY] = self.DONE_ACTION
             bindings_viewer[self.EDIT_KEY] = self.EDIT_ACTION
             bindings_viewer[self.NEXT_KEY] = self.NEXT_ACTION
             bindings_viewer[self.PREVIOUS_KEY] = self.PREVIOUS_ACTION
+            bindings_viewer[self.REFERENCE_BRIGHTER_KEY] = \
+                self.REFERENCE_BRIGHTER_ACTION
+            bindings_viewer[self.REFERENCE_DIMMER_KEY] = \
+                self.REFERENCE_DIMMER_ACTION
             bindings_viewer[self.REFRESH_KEY] = self.REFRESH_ACTION
             bindings_viewer[self.SAVE_KEY] = self.SAVE_ACTION
             bindings_viewer[self.REDO_KEY] = self.REDO_ACTION
@@ -306,6 +328,27 @@ void main() {
                 annotation_color=self.EDIT_ANNOTATION_COLOR)
             txn.layers[self.EDIT] = layer
 
+    def on_brighter(self, s):
+        self.brighter()
+
+    def brighter(self):
+        self.moving_brightness *= 1.25
+        self.refresh_brightness()
+
+    def on_reference_brighter(self, s):
+        self.reference_brighter()
+
+    def reference_brighter(self):
+        self.reference_brightness *= 1.25
+        self.refresh_brightness()
+
+    def on_reference_dimmer(self, s):
+        self.reference_dimmer()
+
+    def reference_dimmer(self):
+        self.reference_brightness = self.reference_brightness / 1.25
+        self.refresh_brightness()
+
     def on_clear(self, s):
         """Clear the current edit annotation"""
         self.clear()
@@ -318,6 +361,27 @@ void main() {
         with self.moving_viewer.txn() as txn:
             txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
                 annotation_color=self.EDIT_ANNOTATION_COLOR)
+
+    def on_dimmer(self, s):
+        self.dimmer()
+
+    def dimmer(self):
+        self.moving_brightness = self.moving_brightness / 1.25
+        self.refresh_brightness()
+
+    def refresh_brightness(self):
+        max_reference_img = max(np.finfo(np.float32).eps,
+                               np.percentile(self.reference_image, 99.9))
+        max_moving_img = max(np.finfo(np.float32).eps,
+                             np.percentile(self.moving_image, 99.9))
+        with self.reference_viewer.txn() as txn:
+            txn.layers[self.REFERENCE].layer.shader = \
+                red_shader % (self.reference_brightness / max_reference_img)
+            txn.layers[self.ALIGNMENT].layer.shader = \
+                green_shader % (self.moving_brightness / max_moving_img)
+        with self.moving_viewer.txn() as txn:
+            txn.layers[self.IMAGE].layer.shader = \
+                gray_shader % (self.moving_brightness / max_moving_img)
 
     def on_edit(self, s):
         """Transfer the currently selected point to the edit annotation"""
@@ -466,13 +530,16 @@ void main() {
         """Refresh both views"""
         with self.moving_viewer.txn() as s:
             s.voxel_size = self.moving_voxel_size
-            layer(s, self.IMAGE, self.moving_image, gray_shader, 1.0,
+            layer(s, self.IMAGE, self.moving_image, gray_shader,
+                  self.moving_brightness,
                   voxel_size=s.voxel_size)
         with self.reference_viewer.txn() as s:
             s.voxel_size = self.reference_voxel_size
-            layer(s, self.REFERENCE, self.reference_image, red_shader, 1.0,
+            layer(s, self.REFERENCE, self.reference_image, red_shader,
+                  self.reference_brightness,
                   voxel_size=s.voxel_size)
-            layer(s, self.ALIGNMENT, self.alignment_image, green_shader, 1.0,
+            layer(s, self.ALIGNMENT, self.alignment_image, green_shader,
+                  self.moving_brightness,
                   voxel_size=s.voxel_size)
             if self.segmentation is not None:
                 s.layers[self.SEGMENTATION] = neuroglancer.SegmentationLayer(
