@@ -102,7 +102,11 @@ class BrainRegions:
         :param level: the level, from 1 (the most gross level) to 7 (the most
         fine)
         """
-        return self.level_per_id[idx][level - 1 ]
+        try:
+            name = self.level_per_id[idx][level - 1 ]
+        except KeyError:
+            name = 'id_{}'.format(idx)
+        return name
 
     def get_acronym(self, idx):
         """Return the acronym / abbreviation for a segmentation ID
