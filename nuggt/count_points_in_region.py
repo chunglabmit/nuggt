@@ -43,6 +43,10 @@ def parse_args(args=sys.argv[1:]):
                         help="Specify this flag if the points file is "
                         "ordered by X, Y, and Z instead of Z, Y and X.",
                         action="store_true")
+    parser.add_argument("--exclude-empty",
+                        action="store_true",
+                        help="Exclude regions from the CSV that have no points"
+                        " in them")
     return parser.parse_args(args)
 
 
@@ -88,8 +92,27 @@ def main():
 
     with open(args.brain_regions_csv) as fd:
         br = BrainRegions.parse(fd)
-
     if args.level == 7:
+        if not args.exclude_empty:
+            all_ids = sorted(br.name_per_id.keys())
+            all_ids_idx = 0
+            tmp_seg_ids = []
+            tmp_counts_per_id = []
+            for seg_id, count in zip(seg_ids, counts_per_id):
+                while all_ids[all_ids_idx] < seg_id:
+                    tmp_seg_ids.append(all_ids[all_ids_idx])
+                    tmp_counts_per_id.append(0)
+                    all_ids_idx += 1
+                if seg_id == all_ids[all_ids_idx]:
+                    all_ids_idx += 1
+                tmp_seg_ids.append(seg_id)
+                tmp_counts_per_id.append(count)
+            for seg_id in all_ids[all_ids_idx:]:
+                tmp_seg_ids.append(seg_id)
+                tmp_counts_per_id.append(0)
+            seg_ids = tmp_seg_ids
+            counts_per_id = tmp_counts_per_id
+
         with open(args.output, "w") as fd:
             fd.write('"id","region","count"\n')
             for seg_id, count in zip(seg_ids, counts_per_id):
@@ -100,6 +123,12 @@ def main():
                 fd.write('%d,"%s",%d\n' % (seg_id, region, count))
     else:
         d = {}
+        if not args.exclude_empty:
+            all_ids = sorted(br.name_per_id.keys())
+            for seg_id in all_ids:
+                level = br.get_level_name(seg_id, args.level)
+                d[level] = 0
+
         for seg_id, count in zip(seg_ids, counts_per_id):
             level = br.get_level_name(seg_id, args.level)
             if level in d:
