@@ -48,7 +48,7 @@ class NuggtViewer:
             self.points = np.zeros((0, 3), np.float32)
         if detected_points_file is not None:
             with open(detected_points_file) as fd:
-                self.detected_points = json.load(fd)
+                self.detected_points = np.array(json.load(fd))
         else:
             self.detected_points = None
         self.deleting_points = None
