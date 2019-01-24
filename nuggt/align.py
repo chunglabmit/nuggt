@@ -65,6 +65,10 @@ def parse_args():
                         help="X, Y and Z size of voxels, separated by "
                         "commas, e.g. \"1.6,1.6,1.0\"",
                         default="1.0,1.0,1.0")
+    parser.add_argument("--min-distance",
+                        type=float,
+                        default=1.0,
+                        help="Minimum distance between any two annotations.")
     return parser.parse_args()
 
 
@@ -155,7 +159,8 @@ void main() {
     alignment_buffers = {}
 
     def __init__(self, reference_image, moving_image, segmentation,
-                 points_file, reference_voxel_size, moving_voxel_size):
+                 points_file, reference_voxel_size, moving_voxel_size,
+                 min_distance=1.0):
         """Constructor
 
         :param reference_image: align to this image
@@ -166,6 +171,7 @@ void main() {
         :param reference_voxel_size: a 3-tuple giving the X, Y and Z voxel
         size in nanometers.
         :param moving_voxel_size: the voxel size for the moving image
+        :param min_distance: the minimum allowed distance between any two points
         """
         self.reference_image = reference_image
         self.moving_image = moving_image
@@ -184,6 +190,7 @@ void main() {
         self.moving_voxel_size = moving_voxel_size
         self.reference_brightness = 1.0
         self.moving_brightness = 1.0
+        self.min_distance = min_distance
         self.load_points()
         self.init_state()
 
@@ -290,6 +297,16 @@ void main() {
         :param s: the current state
         """
         point = s.mouse_voxel_coordinates
+        reference_points = np.array(self.reference_pts)
+        if len(reference_points) > 0:
+            distances = np.sqrt(np.sum(np.square(
+                reference_points - point[np.newaxis, ::-1]), 1))
+            if np.min(distances) < self.min_distance:
+                self.post_message(
+                    self.reference_viewer, self.EDIT,
+                    "Point at %d %d %d is too close to some other point" %
+                    tuple(point.tolist()))
+                return
         msg = "Edit point: %d %d %d" %  tuple(point.tolist())
         self.post_message(self.reference_viewer, self.EDIT, msg)
 
@@ -319,6 +336,16 @@ void main() {
         :param s: the current state
         """
         point = s.mouse_voxel_coordinates
+        moving_points = np.array(self.moving_pts)
+        if len(moving_points) > 0:
+            distances = np.sqrt(np.sum(np.square(
+                moving_points - point[np.newaxis, ::-1]), 1))
+            if np.min(distances) < self.min_distance:
+                self.post_message(
+                    self.moving_viewer, self.EDIT,
+                    "Point at %d %d %d is too close to some other point" %
+                    tuple(point.tolist()))
+                return
         msg = "Edit point: %d %d %d" %  tuple(point.tolist())
         self.post_message(self.moving_viewer, self.EDIT, msg)
 
