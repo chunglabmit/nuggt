@@ -99,11 +99,13 @@ def main():
             tmp_seg_ids = []
             tmp_counts_per_id = []
             for seg_id, count in zip(seg_ids, counts_per_id):
-                while all_ids[all_ids_idx] < seg_id:
+                while all_ids_idx < len(all_ids) and \
+                        all_ids[all_ids_idx] < seg_id:
                     tmp_seg_ids.append(all_ids[all_ids_idx])
                     tmp_counts_per_id.append(0)
                     all_ids_idx += 1
-                if seg_id == all_ids[all_ids_idx]:
+                if all_ids_idx < len(all_ids) and \
+                        seg_id == all_ids[all_ids_idx]:
                     all_ids_idx += 1
                 tmp_seg_ids.append(seg_id)
                 tmp_counts_per_id.append(count)
