@@ -41,6 +41,10 @@ def main():
                         "http://localhost:8080 if being served via npm.")
     parser.add_argument("--points",
                         help="A points file in X, Y, Z order to display")
+    parser.add_argument("--show-n",
+                        type=int,
+                        help="Show only a certain number of randomly selected "
+                        "points.")
     args = parser.parse_args()
     if args.static_content_source is not None:
         neuroglancer.set_static_content_source(url=args.static_content_source)
@@ -83,6 +87,8 @@ def main():
         if args.points is not None:
             with open(args.points) as fd:
                 points = np.array(json.load(fd))
+                if args.show_n is not None:
+                    points = points[np.random.choice(len(points), args.show_n)]
                 pointlayer(txn, "points",
                            points[:, 0], points[:, 1], points[:, 2], "red")
 
@@ -90,3 +96,7 @@ def main():
     webbrowser.open(viewer.get_viewer_url())
     while True:
         time.sleep(5)
+
+
+if __name__=="__main__":
+    main()
