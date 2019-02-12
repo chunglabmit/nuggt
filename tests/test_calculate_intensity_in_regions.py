@@ -132,17 +132,7 @@ class TestMain(unittest.TestCase):
                      [10, 10, 0],
                      [10, 0, 10],
                      [10, 10, 10]]
-            with open(brain_regions_path.name, "w") as fd:
-                fd.write('id,counts,density,name,acronym\n')
-                fd.write("0,98,98,b'background',b'background',b'background',"
-                         "b'background',b'background',b'background',"
-                         "b'background'\n")
-                fd.write("1,1,1,b'region_1',b'foreground',b'foreground',"
-                         "b'foreground',b'foreground',b'foreground',"
-                         "b'foreground'\n")
-                fd.write("2,1,1,b'region_2',b'foreground',b'foreground',"
-                         "b'foreground',b'foreground',b'foreground',"
-                         "b'foreground'\n")
+            self.write_brain_regions_file(brain_regions_path)
             with open(align_path.name, "w") as fd:
                 json.dump(dict(moving=xform, reference=xform), fd)
             main(["--input", os.path.join(img_path, "img_*.tiff",),
@@ -150,7 +140,7 @@ class TestMain(unittest.TestCase):
                   "--reference-segmentation", seg_path.name,
                   "--brain-regions-csv", brain_regions_path.name,
                   "--output", out_path.name,
-                  "--level", "7"])
+                  "--level", "1"])
             with open(out_path.name, "r") as fd:
                 header = fd.readline()
                 line_0 = fd.readline().split(",")
@@ -194,17 +184,7 @@ class TestMain(unittest.TestCase):
                      [10, 10, 0],
                      [10, 0, 10],
                      [10, 10, 10]]
-            with open(brain_regions_path.name, "w") as fd:
-                fd.write('id,counts,density,name,acronym\n')
-                fd.write("0,98,98,b'background',b'background',b'background',"
-                         "b'background',b'background',b'background',"
-                         "b'background'\n")
-                fd.write("1,1,1,b'region_1',b'foreground',b'foreground',"
-                         "b'foreground',b'foreground',b'foreground',"
-                         "b'foreground'\n")
-                fd.write("2,1,1,b'region_2',b'foreground',b'foreground',"
-                         "b'foreground',b'foreground',b'foreground',"
-                         "b'foreground'\n")
+            self.write_brain_regions_file(brain_regions_path)
             with open(align_path.name, "w") as fd:
                 json.dump(dict(moving=xform, reference=xform), fd)
             main(["--input", os.path.join(img_path, "img_*.tiff",),
@@ -212,19 +192,29 @@ class TestMain(unittest.TestCase):
                   "--reference-segmentation", seg_path.name,
                   "--brain-regions-csv", brain_regions_path.name,
                   "--output", out_path.name,
-                  "--level", "5"])
+                  "--level", "0"])
             with open(out_path.name, "r") as fd:
                 header = fd.readline()
                 line_0 = fd.readline().split(",")
                 line_1 = fd.readline().split(",")
-            self.assertEqual(line_0[0][1:-1], "background")
-            self.assertEqual(line_0[1], "998")
-            self.assertAlmostEqual(float(line_0[3]), int(line_0[2]) / 998, 0)
-            self.assertEqual(line_1[0][1:-1], "foreground")
-            self.assertEqual(line_1[1], "2")
-            self.assertEqual(int(line_1[2]), img[5, 3, 3] + img[5, 7, 7])
+            self.assertEqual(line_0[0], "0")
+            self.assertEqual(line_0[1][1:-1], "background")
+            self.assertEqual(line_0[2], "998")
+            self.assertAlmostEqual(float(line_0[4]), int(line_0[3]) / 998, 0)
+            self.assertEqual(line_1[0], "3")
+            self.assertEqual(line_1[1][1:-1], "foreground")
+            self.assertEqual(line_1[2], "2")
+            self.assertEqual(int(line_1[3]), img[5, 3, 3] + img[5, 7, 7])
             self.assertEqual(
-                float(line_1[3]), (img[5, 3, 3] + img[5, 7, 7]) / 2)
+                float(line_1[4]), (img[5, 3, 3] + img[5, 7, 7]) / 2)
+
+    def write_brain_regions_file(self, brain_regions_path):
+        with open(brain_regions_path.name, "w") as fd:
+            fd.write('id,name,acronym,parent_structure_id,depth\n')
+            fd.write("0,background,background,0,0\n")
+            fd.write("1,region_1,region_1,3,1\n")
+            fd.write("2,region_2,region_2,3,1\n")
+            fd.write("3,foreground,foreground,0,0\n")
 
     def test_region_missing(self):
         with named_temporary_dir() as img_path, \
@@ -250,17 +240,7 @@ class TestMain(unittest.TestCase):
                      [10, 10, 0],
                      [10, 0, 10],
                      [10, 10, 10]]
-            with open(brain_regions_path.name, "w") as fd:
-                fd.write('id,counts,density,name,acronym\n')
-                fd.write("0,98,98,b'background',b'background',b'background',"
-                         "b'background',b'background',b'background',"
-                         "b'background'\n")
-                fd.write("1,1,1,b'region_1',b'foreground',b'foreground',"
-                         "b'foreground',b'foreground',b'foreground',"
-                         "b'foreground'\n")
-                fd.write("2,1,1,b'region_2',b'foreground',b'foreground',"
-                         "b'foreground',b'foreground',b'foreground',"
-                         "b'foreground'\n")
+            self.write_brain_regions_file(brain_regions_path)
             with open(align_path.name, "w") as fd:
                 json.dump(dict(moving=xform, reference=xform), fd)
             main(["--input", os.path.join(img_path, "img_*.tiff",),
@@ -268,7 +248,7 @@ class TestMain(unittest.TestCase):
                   "--reference-segmentation", seg_path.name,
                   "--brain-regions-csv", brain_regions_path.name,
                   "--output", out_path.name,
-                  "--level", "5"])
+                  "--level", "1"])
 
 
 if __name__ == '__main__':

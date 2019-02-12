@@ -134,7 +134,8 @@ def main(args=sys.argv[1:]):
     levels = args.level
     while len(levels) < len(args.output):
         levels.append(7)
-    alignment = json.load(open(args.alignment))
+    with open(args.alignment) as fd:
+        alignment = json.load(fd)
     warper = Warper(alignment["moving"], alignment["reference"])
     segmentation = tifffile.imread(args.reference_segmentation)\
         .astype(np.uint16)
@@ -177,39 +178,26 @@ def main(args=sys.argv[1:]):
     mean_intensity_per_id = \
         total_intensities_per_id.astype(float) / counts_per_id
     for level, output in zip(levels, args.output):
-        if level == 7:
-            with open(output, "w") as fd:
-                fd.write(
-                    '"id","region","area","total_intensity","mean_intensity"\n')
-                for seg_id, count, total_intensity, mean_intensity in zip(
-                        seg_ids, counts_per_id, total_intensities_per_id,
-                        mean_intensity_per_id):
-                    if seg_id == 0:
-                        region = "not in any region"
-                    else:
-                        region = br.name_per_id.get(seg_id, "id%d" % seg_id)
-                    fd.write('%d,"%s",%d, %d, %.2f\n' %
-                             (seg_id, region, count, total_intensity,
-                              mean_intensity))
-        else:
-            d = {}
-            for seg_id, count, intensity in zip(
-                    seg_ids, counts_per_id, total_intensities_per_id):
-                try:
-                    l = br.get_level_name(seg_id, level)
-                except KeyError:
-                    l = "region_%d" % seg_id
-                if l in d:
-                    d[l][0] += count
-                    d[l][1] += intensity
-                else:
-                    d[l] = [count, intensity]
-            with open(output, "w") as fd:
-                fd.write('"region","area","total_intensity","mean_intensity"\n')
-                for l in sorted(d):
-                    fd.write('"%s",%d,%d,%.2f\n' %
-                             (l, d[l][0], d[l][1],
-                              d[l][1] / d[l][0]))
+        d = {}
+        for seg_id, count, intensity in zip(
+                seg_ids, counts_per_id, total_intensities_per_id):
+            try:
+                l = br.level_per_id[seg_id][level]
+            except KeyError:
+                l = seg_id
+            if l in d:
+                d[l][0] += count
+                d[l][1] += intensity
+            else:
+                d[l] = [count, intensity]
+        with open(output, "w") as fd:
+            fd.write(
+                '"id","region","area","total_intensity","mean_intensity"\n')
+            for l in sorted(d):
+                region = br.name_per_id[l]
+                fd.write('%d,"%s",%d,%d,%.2f\n' %
+                         (l, region, d[l][0], d[l][1],
+                          d[l][1] / d[l][0]))
 
 
 if __name__=="__main__":

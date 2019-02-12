@@ -24,8 +24,12 @@ class TestCropCoordinates(unittest.TestCase):
         with make_case(my_case) as (input, output):
             main(["--input", input,
                   "--output", output])
-            result = json.load(open(output))
+            result = self.json_load(output)
             self.assertSequenceEqual(my_case, result)
+
+    def json_load(self, output):
+        with open(output) as fd:
+            return json.load(fd)
 
     def test_x0(self):
         my_case = [[1, 2, 3], [4, 5, 6]]
@@ -33,7 +37,7 @@ class TestCropCoordinates(unittest.TestCase):
             main(["--input", input,
                   "--output", output,
                   "--x0", "4"])
-            result = json.load(open(output))
+            result = self.json_load(output)
             self.assertSequenceEqual(my_case[1:], result)
 
     def test_x1(self):
@@ -42,7 +46,7 @@ class TestCropCoordinates(unittest.TestCase):
             main(["--input", input,
                   "--output", output,
                   "--x1", "4"])
-            result = json.load(open(output))
+            result = self.json_load(output)
             self.assertSequenceEqual(my_case[:1], result)
 
     def test_y0(self):
@@ -51,7 +55,7 @@ class TestCropCoordinates(unittest.TestCase):
             main(["--input", input,
                   "--output", output,
                   "--y0", "5"])
-            result = json.load(open(output))
+            result = self.json_load(output)
             self.assertSequenceEqual(my_case[1:], result)
 
     def test_y1(self):
@@ -60,7 +64,7 @@ class TestCropCoordinates(unittest.TestCase):
             main(["--input", input,
                   "--output", output,
                   "--y1", "5"])
-            result = json.load(open(output))
+            result = self.json_load(output)
             self.assertSequenceEqual(my_case[:1], result)
 
     def test_z0(self):
@@ -69,7 +73,7 @@ class TestCropCoordinates(unittest.TestCase):
             main(["--input", input,
                   "--output", output,
                   "--z0", "6"])
-            result = json.load(open(output))
+            result = self.json_load(output)
             self.assertSequenceEqual(my_case[1:], result)
 
     def test_z1(self):
@@ -78,7 +82,7 @@ class TestCropCoordinates(unittest.TestCase):
             main(["--input", input,
                   "--output", output,
                   "--z1", "6"])
-            result = json.load(open(output))
+            result = self.json_load(output)
             self.assertSequenceEqual(my_case[:1], result)
 
 
