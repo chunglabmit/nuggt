@@ -194,7 +194,10 @@ def main(args=sys.argv[1:]):
             fd.write(
                 '"id","region","area","total_intensity","mean_intensity"\n')
             for l in sorted(d):
-                region = br.name_per_id[l]
+                try:
+                    region = br.name_per_id[l]
+                except KeyError:
+                    region = "region # %d" % l
                 fd.write('%d,"%s",%d,%d,%.2f\n' %
                          (l, region, d[l][0], d[l][1],
                           d[l][1] / d[l][0]))

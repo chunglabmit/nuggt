@@ -228,7 +228,7 @@ class TestMain(unittest.TestCase):
                                 img[i])
             seg = np.zeros((10, 10, 10), np.uint16)
             seg[5, 3, 3] = 1
-            seg[5, 7, 7] = 3
+            seg[5, 7, 7] = 4
             tifffile.imsave(seg_path.name, seg)
             xform = [[0, 0, 0],
                      [0, 10, 0],
