@@ -34,6 +34,7 @@ setup(
         'calculate-intensity-in-regions=nuggt.calculate_intensity_in_regions:main',
         'count-points-in-region=nuggt.count_points_in_region:main',
         'crop-coordinates=nuggt.crop_coordinates:main',
+        'make-brain-regions-file=nuggt.brain_regions:main',
         'nuggt=nuggt.main:main',
         'nuggt-align=nuggt.align:main',
         'nuggt-display=nuggt.display_image:main',

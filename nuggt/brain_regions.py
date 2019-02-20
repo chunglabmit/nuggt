@@ -3,29 +3,56 @@
 """
 
 import csv
+import json
+import sys
+from urllib.request import urlopen
+
+URL = "http://api.brain-map.org/api/v2/structure_graph_download/1.json"
+
+
+def make_brain_regions_file(dest):
+    with urlopen(URL) as fd:
+        download = json.load(fd)
+    records = []
+    do_level(0, download["msg"], records, -1)
+    with open(dest, "w") as fd:
+        fd.write(",".join([BrainRegions.ID_FIELD_NAME,
+                           BrainRegions.NAME_FIELD_NAME,
+                           BrainRegions.ACRONYM_FIELD_NAME,
+                           BrainRegions.PARENT_STRUCTURE_ID_FIELD_NAME,
+                           BrainRegions.DEPTH_FIELD_NAME]))
+        fd.write("\n")
+        for record in records:
+            fd.write('%d,"%s","%s",%d,%d\n' % (
+                record[BrainRegions.ID_FIELD_NAME],
+                record[BrainRegions.NAME_FIELD_NAME],
+                record[BrainRegions.ACRONYM_FIELD_NAME],
+                record[BrainRegions.PARENT_STRUCTURE_ID_FIELD_NAME],
+                record[BrainRegions.DEPTH_FIELD_NAME]
+            ))
+
+
+def do_level(level, items, records, parent):
+    for d in items:
+        idx = len(records)
+        acronym = d["acronym"]
+        if "name" in d:
+            name = d["name"]
+        else:
+            name = acronym
+        record = dict(id=idx, name=name, acronym=acronym,
+                      parent_structure_id=parent,
+                      depth=level)
+        records.append(record)
+        do_level(level+1, d["children"], records, parent=idx)
 
 
 class BrainRegions:
     ID_FIELD_NAME = "id"
-    ATLAS_ID_FIELD_NAME = "atlas_id"
     NAME_FIELD_NAME = "name"
     ACRONYM_FIELD_NAME = "acronym"
-    ST_LEVEL_FIELD_NAME = "st_level"
-    ONTOLOGY_ID_FIELD_NAME = "ontology_id"
-    HEMISPHERE_ID_FIELD_NAME = "hemisphere_id"
-    WEIGHT_FIELD_NAME = "weight"
     PARENT_STRUCTURE_ID_FIELD_NAME = "parent_structure_id"
     DEPTH_FIELD_NAME = "depth"
-    GRAPH_ID_FIELD_NAME = "graph_id"
-    GRAPH_ORDER_FIELD_NAME = "graph_order"
-    STRUCTURE_ID_PATH_FIELD_NAME = "structure_id_path"
-    COLOR_HEX_TRIPLET_FIELD_NAME = "color_hex_triplet"
-    NEURO_NAME_STRUCTURE_ID_FIELD_NAME = "neuro_name_structure_id"
-    NEURO_NAME_STRUCTURE_ID_PATH_FIELD_NAME = "neuro_name_structure_id_path"
-    FAILED_FIELD_NAME = "failed"
-    SPHINX_ID_FIELD_NAME = "sphinx_id"
-    STRUCTURE_NAME_FACET_FIELD_NAME = "structure_name_facet"
-    FAILED_FACET_FIELD_NAME = "failed_facet"
 
 
     @staticmethod
@@ -78,7 +105,7 @@ class BrainRegions:
             self.acronym_per_id[idd] = acronym
             self.name_per_id[idd] = name
             self.id_level[idd] = level
-            if parent_id != 0:
+            if parent_id != -1:
                 self.parent_per_id[idd] = parent_id
             if name not in self.id_per_region:
                 self.id_per_region[name] = set()
@@ -144,3 +171,11 @@ class BrainRegions:
         the named region or a subregion thereof.
         """
         return self.id_per_region.get(name, [])
+
+
+def main():
+    make_brain_regions_file(sys.argv[1])
+
+
+if __name__ == "__main__":
+    main()
