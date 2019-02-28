@@ -211,10 +211,10 @@ class TestMain(unittest.TestCase):
     def write_brain_regions_file(self, brain_regions_path):
         with open(brain_regions_path.name, "w") as fd:
             fd.write('id,name,acronym,parent_structure_id,depth\n')
-            fd.write("0,background,background,0,0\n")
+            fd.write("0,background,background,-1,0\n")
             fd.write("1,region_1,region_1,3,1\n")
             fd.write("2,region_2,region_2,3,1\n")
-            fd.write("3,foreground,foreground,0,0\n")
+            fd.write("3,foreground,foreground,-1,0\n")
 
     def test_region_missing(self):
         with named_temporary_dir() as img_path, \

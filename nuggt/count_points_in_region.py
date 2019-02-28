@@ -93,10 +93,27 @@ def main():
     with open(args.brain_regions_csv) as fd:
         br = BrainRegions.parse(fd)
 
+    areas = np.bincount(seg.flatten(),
+                        minlength=np.max(list(br.name_per_id.keys()))+1)
     d = {}
+    area_d = {}
+    level_max = np.max(list(br.id_level.values()))
+    all_ids = sorted(br.name_per_id.keys())
+    for level in range(level_max, -1, -1):
+        for seg_id in all_ids:
+            if br.id_level[seg_id] == level:
+                if seg_id in area_d:
+                    area_d[seg_id] = area_d[seg_id] + areas[seg_id]
+                else:
+                    area_d[seg_id] = areas[seg_id]
+                if seg_id in br.parent_per_id:
+                    parent_id = br.parent_per_id[seg_id]
+                    if parent_id in area_d:
+                        area_d[parent_id] = area_d[parent_id] + area_d[seg_id]
+                    else:
+                        area_d[parent_id] = area_d[seg_id]
     level = args.level + 1
     if not args.exclude_empty:
-        all_ids = sorted(br.name_per_id.keys())
         for seg_id in all_ids:
             if br.id_level[seg_id] == level:
                 d[seg_id] = 0
@@ -110,15 +127,20 @@ def main():
             count += d[level_id]
         d[level_id] = count
     with open(args.output, "w") as fd:
-        fd.write('"id","region","count"\n')
+        fd.write('"id","region","count","area","density"\n')
         for level_id in sorted(d):
             try:
                 name = br.get_name(level_id)
             except:
                 name = "background" if level_id == 0 \
                     else "region # %d" % level_id
-            fd.write('%d,"%s",%d\n' %
-                     (level_id, name, d[level_id]))
+            if area_d[level_id] == 0:
+                density = 0
+            else:
+                density = d[level_id] * 1000 / area_d[level_id]
+            fd.write('%d,"%s",%d,%d,%.06f\n' %
+                     (level_id, name, d[level_id], area_d[level_id],
+                      density))
 
 
 if __name__=="__main__":
