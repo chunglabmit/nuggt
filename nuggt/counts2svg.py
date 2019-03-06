@@ -1,12 +1,19 @@
+# -*- coding: utf-8 -*-
 import argparse
+from functools import reduce
 import json
 import matplotlib.cm
 import numpy as np
 import pandas
+import tifffile
 import xml.etree.ElementTree as ET
 from urllib.request import urlopen
 
 RGB_2_ACR_URL = "https://scalablebrainatlas.incf.org/templates/ABA_v3/template/rgb2acr.json"
+PATH_TAG = "{http://www.w3.org/2000/svg}path"
+RECT_TAG = "{http://www.w3.org/2000/svg}rect"
+STYLE_TAG = "{http://www.w3.org/2000/svg}style"
+TEXT_TAG = "{http://www.w3.org/2000/svg}text"
 
 
 def parse_args():
@@ -47,6 +54,21 @@ def parse_args():
         "--invert",
         action="store_true",
         help="Invert the color map to flip low and high values.")
+    parser.add_argument(
+        "--colorbar",
+        action="store_true",
+        help="Draw a colorbar on the side of the SVG. (needs "
+             "--segmentation-file argument)")
+    parser.add_argument(
+        "--segmentation-file",
+        help="Compute the total # of voxels from this file (for the colorbar)")
+    parser.add_argument(
+        "--brain-volume",
+        type=float,
+        default=225.0,
+        help="The brain volume in mm³. If the segmentation file is a "
+             "hemisphere, remember to divide by 2."
+    )
     return parser.parse_args()
 
 
@@ -61,7 +83,7 @@ def get_region_paths(svg_filename):
     tree = ET.parse(svg_filename)
     kids = tree.getroot().getchildren()
     grandkids = kids[0].getchildren()
-    paths = [_ for _ in grandkids if _.tag == "{http://www.w3.org/2000/svg}path"]
+    paths = [_ for _ in grandkids if _.tag == PATH_TAG]
     return tree, paths, grandkids[0]
 
 
@@ -114,8 +136,19 @@ def make_intensity_map(data, segment_ids):
         intensity_per_seg_id[seg_id] = intensity
     return intensity_per_seg_id
 
+def calc_limits(data):
+    """
+    Calculate the minimum and maximum limits among all data
+
+    :param data: a sequence of dataframes with count data in them
+    :return: the minimum and maximum
+    """
+    imin, imax = [reduce(fn, [npfn(d["count"] / d.area) for d in data])
+        for fn, npfn in ((min, np.min), (max, np.max))]
+    return imin, imax
 
 def recolor_path_elements(intensity_per_seg_id, path_and_id,
+                          imin, imax,
                           colormap_name, invert=False):
     """
     Change the fill colors of the region path elements based on the
@@ -123,6 +156,8 @@ def recolor_path_elements(intensity_per_seg_id, path_and_id,
 
     :param intensity_per_seg_id: map of intensities for each segment ID
     :param path_and_id: two-tuple of path and segment ID
+    :param imin: the minimum intensity among all data
+    :param imax: the maximum intensity among all data
     :param colormap_name: The matplotlib colormap to use, e.g. "hot" or "jet"
     :param invert: If True, invert the color map so that low densities have
     stronger colors.
@@ -130,7 +165,12 @@ def recolor_path_elements(intensity_per_seg_id, path_and_id,
     intensities = np.array(list(intensity_per_seg_id.values()))
     if invert:
         intensities = -intensities
-    colors = (matplotlib.cm.ScalarMappable(cmap=colormap_name).to_rgba(
+    sm = matplotlib.cm.ScalarMappable(cmap=colormap_name)
+    if invert:
+        sm.set_clim(-imax, imin)
+    else:
+        sm.set_clim(imin, imax)
+    colors = (sm.to_rgba(
         intensities) * 255).astype(int)
     color_per_seg_id = {}
     for seg_id, color in zip(intensity_per_seg_id.keys(), colors):
@@ -144,6 +184,77 @@ def recolor_path_elements(intensity_per_seg_id, path_and_id,
         path.attrib["fill"] = str_color
         path.attrib["stroke"] = "#AAAAAA"
         path.attrib["stroke-width"] = "1"
+    return sm
+
+
+def draw_colorbar(tree:ET.ElementTree,
+                   colormap:matplotlib.cm.ScalarMappable,
+                   invert:bool,
+                   voxels_per_mm3:float,
+                   title="counts/mm³"):
+    """
+    Expand the SVG to the right and put a colorbar there.
+    :param tree: The XML element tree
+    :param colormap: the color map to draw
+    :param invert: Invert the color map intensities when labeling
+    :param voxels_per_mm3: # of voxels per cubic millimeter
+    """
+    imin, imax = colormap.get_clim()
+    imin_scale = imin * voxels_per_mm3
+    imax_scale = imax * voxels_per_mm3
+    if invert:
+        imax_scale, imin_scale = -imin_scale, -imax_scale
+        imin, imax = imax, imin
+    svg = tree.getroot()
+    g = svg.getchildren()[0]
+    background_rect = [_ for _ in g.getchildren() if _.tag.endswith("rect")][0]
+    old_width = int(svg.attrib["width"])
+    new_width = old_width + 100
+    svg.attrib["width"] = new_width
+    height = int(svg.attrib["height"]) - 30
+    top = 10
+    left = old_width
+
+    background_rect.attrib["width"] = str(new_width)
+    svg.attrib["width"] = str(new_width)
+    style_elem = ET.Element(STYLE_TAG)
+    style_elem.text = """
+    .title { font: bold 8pt sans-serif;}
+    .annotation {font: bold 5pt sans-serif;}
+    """
+    svg.insert(0, style_elem)
+    n_rects = 50
+    rect_height = height / n_rects
+    rect_y = np.linspace(20, 20+height, 50)
+    colors = \
+        (colormap.to_rgba(np.linspace(imax, imin, 50)) * 255).astype(int)
+    for y, (red, green, blue, alpha) in zip(rect_y, colors):
+        relem = ET.Element(RECT_TAG,
+                           dict(x=str(old_width),
+                                y=str(y),
+                                width="50",
+                                height=str(rect_height),
+                                fill="#%02x%02x%02x" % (red, green, blue)))
+        relem.attrib["stroke-width"] = "0"
+        g.append(relem)
+    title_elem = ET.Element(TEXT_TAG,
+                            dict(x=str(old_width),
+                                 y="15"))
+    title_elem.attrib["class"] = "title"
+    title_elem.text = title
+    g.append(title_elem)
+    max_elem = ET.Element(TEXT_TAG,
+                          dict(x=str(old_width + 52),
+                               y="25"))
+    max_elem.attrib["class"] = "annotation"
+    max_elem.text = str(int(imax_scale))
+    g.append(max_elem)
+    min_elem = ET.Element(TEXT_TAG,
+                          dict(x=str(old_width + 52),
+                               y=str(height + 20)))
+    min_elem.attrib["class"] = "annotation"
+    min_elem.text = str(int(imin_scale))
+    g.append(min_elem)
 
 
 def main():
@@ -154,8 +265,20 @@ def main():
     path_and_id, path_by_id = make_path_mappings(
         paths, args.brain_regions_file, args.rgb2acr_file)
     intensity_per_seg_id = make_intensity_map(data, path_by_id.keys())
-    recolor_path_elements(intensity_per_seg_id, path_and_id,
-                          args.colormap_name, args.invert)
+    imin, imax = calc_limits(data)
+    sm = recolor_path_elements(intensity_per_seg_id, path_and_id, imin, imax,
+                               args.colormap_name, args.invert)
+    if args.colorbar:
+        if args.segmentation_file is None:
+            voxels_per_mm3 = 1000
+            title = "Counts per KVoxel"
+        else:
+            n_voxels = np.sum(tifffile.imread(args.segmentation_file) != 0)
+            voxels_per_mm3 = n_voxels / args.brain_volume
+            title = "Counts per mm³"
+        draw_colorbar(tree, sm, args.invert,
+                      voxels_per_mm3=voxels_per_mm3,
+                      title=title)
     tree.write(args.output)
 
 
