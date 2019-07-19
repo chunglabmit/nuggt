@@ -25,7 +25,7 @@ Install *nuggt* like this:
 ```
 > git clone https://github.com/chunglabmit/nuggt
 > cd nuggt
-> pip install nuggt
+> pip install -e .
 ```
 
 ### Docker
