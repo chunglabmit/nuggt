@@ -18,7 +18,13 @@ FROM chunglabmit/simpleelastix
 #RUN cd /build;cmake -D PYTHON_EXECUTABLE=`which python3` ../SimpleElastix/SuperBuild
 #RUN cd /build;make -j `nproc`
 #RUN cd /build/SimpleITK-build/Wrapping/Python/Packaging;python3 setup.py install
+RUN apt-get update
 RUN apt-get install -y python3-pip
+#
+# At this point six 1.11.0 is installed and Neuroglancer complains
+#
+RUN apt-get remove -y python3-six
+RUN pip3 install six>=1.12.0
 RUN pip3 install tornado==4.5.3 numpy
 #
 # Install Neuroglancer dev environment
