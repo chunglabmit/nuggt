@@ -18,6 +18,7 @@ import webbrowser
 
 from .utils.warp import Warper
 from .utils.ngutils import layer, red_shader, gray_shader, green_shader
+from .utils.ngutils import soft_max_brightness
 
 # Monkey-patch neuroglancer.PointAnnotationLayer to have a color
 
@@ -397,10 +398,8 @@ void main() {
         self.refresh_brightness()
 
     def refresh_brightness(self):
-        max_reference_img = max(np.finfo(np.float32).eps,
-                               np.percentile(self.reference_image, 99.9))
-        max_moving_img = max(np.finfo(np.float32).eps,
-                             np.percentile(self.moving_image, 99.9))
+        max_reference_img = soft_max_brightness(self.reference_image)
+        max_moving_img = soft_max_brightness(self.moving_image)
         with self.reference_viewer.txn() as txn:
             txn.layers[self.REFERENCE].layer.shader = \
                 red_shader % (self.reference_brightness / max_reference_img)

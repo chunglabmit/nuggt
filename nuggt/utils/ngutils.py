@@ -80,6 +80,22 @@ if not hasattr(neuroglancer.PointAnnotationLayer, "annotation_color"):
 default_voxel_size = (1000, 1000, 1000)
 
 
+def soft_max_brightness(img, percentile=99.9):
+    """
+    Compute a soft maximum brightness for an image based on almost all the
+    voxels
+
+    :param img: The image to compute
+    :param percentile: the percentile to use - pick the brightness at this
+    percentile
+    :return: the soft max brightness
+    """
+    result = np.percentile(img, percentile)
+    if result == 0:
+        result = max(np.finfo(np.float32).eps, np.max(img))
+    return result
+
+
 def layer(txn, name, img, shader, multiplier, offx=0, offy=0, offz=0,
           voxel_size=default_voxel_size):
     """Add an image layer to Neuroglancer
@@ -99,7 +115,7 @@ def layer(txn, name, img, shader, multiplier, offx=0, offy=0, offz=0,
         frac = multiplier
         source = img
     else:
-        frac = multiplier / np.percentile(img, 99.9)
+        frac = multiplier / soft_max_brightness(img)
         if img.dtype.kind in ("i", "u"):
             frac = frac * np.iinfo(img.dtype).max
         source = neuroglancer.LocalVolume(img,
