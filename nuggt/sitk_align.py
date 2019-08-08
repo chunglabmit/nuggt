@@ -42,6 +42,22 @@ def parse_args():
                         help="sitk-align will save the TransformParameters.txt"
                         " files in this directory if specified.",
                         default=None)
+
+    parser.add_argument(
+        "--custom-points-registration",
+        help="Option to using points files in SITK registration",
+        default=False)
+
+    parser.add_argument(
+        "--custom-reference-points",
+        help="Provide the reference points files for SITK points registration",
+        default=None)
+
+    parser.add_argument(
+        "--custom-moving-points",
+        help="Provide the moving points files for SITK points registration",
+        default=None)
+
     return parser.parse_args()
 
 
@@ -94,13 +110,18 @@ def getParameterMap(rigid=True, affine=True, bspline=True):
 
 
 def align(fixed_image, moving_image, aligned_image_path,
+          points_registration,  moving_points, reference_points,
           transform_parameter_folder = None):
     """Align the files
 
     :param fixed_image: the SimpleITK image for the fixed image
     :param moving_path: the SimpleITK moving image
     :param aligned_image_path: path to write the image after alignment or
-           None if user does not want the image
+        None if user does not want the image
+    :param points_registration: boolean to determine if points
+        registration parameter is added to parameter vector
+    :param moving_points: txt file containing moving image points
+    :param reference_points: txt file containing reference image points
     :param transform_parameter_folder: where to store the transform
     parameter files (this is a side-effect of running
     ElastixImageFilter.Execute in the transfer_parameter_folder directory)
@@ -110,8 +131,36 @@ def align(fixed_image, moving_image, aligned_image_path,
     parameterMapVector = getParameterMap(False,True,True)
     selx.SetParameterMap(parameterMapVector)
 
+    if points_registration is True:
+        pm = selx.GetParameterMap()
+        for i in pm:
+            m = list(i['Metric'])
+            m.append("CorrespondingPointsEuclideanDistanceMetric")
+            i['Metric'] = tuple(m)
+            l = len(i['Metric'])
+            c = 0
+            while c < l:
+                i['Metric' + str(c) + 'Weight'] = '1'
+                if (l == 2) and (c == 1):
+                    i['Metric' + str(c) + 'Weight'] = str('')
+                    new = list(i['Metric' + str(c) + 'Weight'])
+                    new.append(str(1000))
+                    i['Metric' + str(c) + 'Weight'] = tuple(new)
+
+                if (l == 3) and (c == 2):
+                    i['Metric' + str(c) + 'Weight'] = str('')
+                    new = list(i['Metric' + str(c) + 'Weight'])
+                    new.append(str(1000))
+                    i['Metric' + str(c) + 'Weight'] = tuple(new)
+                c += 1
+
     selx.SetFixedImage(fixed_image)
     selx.SetMovingImage(moving_image)
+
+    if moving_points is not None:
+        selx.SetFixedPointSetFileName(reference_points)
+        selx.SetMovingPointSetFileName(moving_points)
+
     curdir = os.path.abspath(os.getcwd())
     try:
         if transform_parameter_folder is not None:
@@ -195,13 +244,18 @@ def main():
     args = parse_args()
     if args.final_grid_spacing is not None:
         FINAL_GRID_SPACING_IN_VOXELS = args.final_grid_spacing.split(",")
+
     fixed_image = sitk.ReadImage(args.fixed_file)
     moving_image = sitk.ReadImage(args.moving_file)
     aligned_file = args.aligned_file
     fixed_point_file = args.fixed_point_file
     alignment_point_file = args.alignment_point_file
-    transform_pm = align(fixed_image, moving_image, aligned_file,
-                         args.transform_parameters_folder)
+    transform_pm = align(
+        fixed_image, moving_image, aligned_file, 
+        points_registration=args.custom_points_registration,
+        moving_points=args.custom_moving_points, 
+        reference_points=args.custom_reference_points,
+        transform_parameter_folder=args.transform_parameters_folder)
     if alignment_point_file is not None:
         with open(fixed_point_file) as fd:
             points = json.load(fd)
