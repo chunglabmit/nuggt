@@ -57,63 +57,201 @@ def parse_args():
         "--custom-moving-points",
         help="Provide the moving points files for SITK points registration",
         default=None)
+    parser.add_argument("--rigid-maximum-number-of-iterations",
+                        help="Maximum # of iterations for the rigid alignment "
+                        "step",
+                        default="1000")
+    parser.add_argument("--rigid-number-of-histogram-bins",
+                        help="Number of histogram bins for the rigid alignment "
+                        "step. Enter numbers separated by commas, ex:"
+                        " \"8,16,32 \". Default is 8,16,32",
+                        default="8,16,32")
+    parser.add_argument("--rigid-number-of-resolutions",
+                        help="Number of resolutions for the rigid alignment "
+                        "step. Default is 6",
+                        default="6")
+    parser.add_argument("--rigid-maximum-step-length",
+                        help="Maximum step length for the rigid alignment step."
+                        " Default = 0.5",
+                        default="0.5")
+    parser.add_argument("--rigid-registration-method",
+                        help="Registration method for the rigid alignment "
+                        "step. Default is "
+                        "\"MultiMetricMultiResolutionRegistration\"",
+                        default='MultiMetricMultiResolutionRegistration')
+    parser.add_argument("--rigid-interpolator",
+                        help="Interpolator for the rigid alignment step. "
+                        "Default is \"BSplineInterpolator\"",
+                        default="BSplineInterpolator")
+    parser.add_argument("--affine-maximum-number-of-iterations",
+                        help="Maximum # of iterations for the affine alignment "
+                        "step",
+                        default="1000")
+    parser.add_argument("--affine-number-of-histogram-bins",
+                        help="Number of histogram bins for the affine alignment "
+                        "step. Enter numbers separated by commas, ex:"
+                        " \"8,16,32 \". Default is 4,8,16,32",
+                        default="4,8,16,32")
+    parser.add_argument("--affine-number-of-resolutions",
+                        help="Number of resolutions for the affine alignment "
+                        "step. Default is 5",
+                        default="5")
+    parser.add_argument("--affine-maximum-step-length",
+                        help="Maximum step length for the affine alignment step."
+                        " Default = 0.5",
+                        default="0.5")
+    parser.add_argument("--affine-bspline-interpolation-order",
+                        help="The bspline interpolation order for the affine "
+                        "alignment step. Default=3",
+                        default="3")
+    parser.add_argument("--affine-final-bspline-interpolation-order",
+                        help="The final bspline interpolation order for the affine "
+                        "alignment step. Default=3",
+                        default="3")
+    parser.add_argument("--affine-registration-method",
+                        help="Registration method for the affine alignment "
+                        "step. Default is "
+                        "\"MultiMetricMultiResolutionRegistration\"",
+                        default='MultiMetricMultiResolutionRegistration')
+    parser.add_argument("--affine-interpolator",
+                        help="Interpolator for the affine alignment step. "
+                        "Default is \"BSplineInterpolator\"",
+                        default="BSplineInterpolator")
+    parser.add_argument("--bspline-maximum-number-of-iterations",
+                        help="Maximum # of iterations for the bspline alignment "
+                        "step",
+                        default="5000")
+    parser.add_argument("--bspline-registration-method",
+                        help="Registration method for the bspline alignment "
+                        "step. Default is "
+                        "\"MultiMetricMultiResolutionRegistration\"",
+                        default='MultiMetricMultiResolutionRegistration')
+    parser.add_argument("--bspline-interpolator",
+                        help="Interpolator for the bspline alignment step. "
+                        "Default is \"BSplineInterpolator\"",
+                        default="BSplineInterpolator")
+    parser.add_argument("--bspline-interpolation-order",
+                        help="Interpolation order for the bspline alignment "
+                        "step. Default = 3",
+                        default="3")
+    parser.add_argument("--bspline-number-of-histogram-bins",
+                        help="Number of histogram bins for the affine alignment "
+                        "step. Enter numbers separated by commas, ex:"
+                        " \"8,16,32 \". Default is 4,8,16,32,64",
+                        default="4,8,16,32,64")
+    parser.add_argument("--bspline-final-interpolation-order",
+                        help="Final bspline interpolation order for the "
+                        "bspline alignment. Default=3",
+                        default="3")
+    parser.add_argument("--bspline-final-grid-spacing-in-voxels",
+                        help="The final grid spacing for the bspline alignment "
+                        "step. Enter three comma-separated values, e.g. "
+                        "\"32,32,32\". Default is 32,32,32",
+                        default="32,32,32")
+    parser.add_argument("--bspline-number-of-resolutions",
+                        help="Number of resolutions for the bspline alignment "
+                        "step. Default is 6",
+                        default="6")
+    parser.add_argument("--bspline-maximum-step-length",
+                        help="Maximum step length for the bspline alignment step."
+                        " Default = 1.0",
+                        default="1.0")
+    parser.add_argument("--bspline-metric-0-weight",
+                        help="Metric 0 weight for the bspline aligment step. "
+                        "Default=4",
+                        default="4")
+    parser.add_argument("--bspline-metric-1-weight",
+                        help="Metric 1 weight for the bspline alignment step. "
+                        "Default = 1000",
+                        default="1000")
+    parser.add_argument("--bspline-metric-2-weight",
+                        help="Metric 2 weight for the bspline alignment step. "
+                        "Default=1",
+                        default="1")
 
     return parser.parse_args()
 
 
-def getParameterMap(rigid=True, affine=True, bspline=True):
+def getParameterMap(args, rigid=True, affine=True, bspline=True):
     parameterMapVector = sitk.VectorOfParameterMap()
     if rigid:
         rigidMap = sitk.GetDefaultParameterMap("rigid")
-        rigidMap['MaximumNumberOfIterations'] = ['1000']
-        rigidMap['NumberOfHistogramBins'] = ['8','16','32']
-        rigidMap['NumberOfResolutions'] = ['6']
-        rigidMap['MaximumStepLength'] = ['0.5']
-        rigidMap['Registration'] = ['MultiMetricMultiResolutionRegistration']
-        rigidMap['Interpolator'] = ['BSplineInterpolator']
+        rigidMap['MaximumNumberOfIterations'] = [
+            args.rigid_maximum_number_of_iterations]
+        rigidMap['NumberOfHistogramBins'] = \
+            args.rigid_number_of_histogram_bins.split(",")
+        rigidMap['NumberOfResolutions'] = [
+            args.rigid_number_of_resolutions ]
+        rigidMap['MaximumStepLength'] = [
+            args.rigid_maximum_step_length]
+        rigidMap['Registration'] = [
+            args.rigid_registration_method]
+        rigidMap['Interpolator'] = [
+            args.rigid_bspline_interpolator]
         parameterMapVector.append(rigidMap)
     if affine:
         affineMap = sitk.GetDefaultParameterMap("affine")
-        affineMap['MaximumNumberOfIterations'] = ['1000']
-        affineMap['Registration'] = ['MultiMetricMultiResolutionRegistration']
-        affineMap['Interpolator'] = ['BSplineInterpolator']
-        affineMap['BSplineInterpolationOrder'] = ['3']
-        affineMap['FinalBSplineInterpolationOrder'] = ['3']
-        affineMap['NumberOfHistogramBins'] = ['4','8','16','32']
-        affineMap['NumberOfResolutions'] = ['5']
-        affineMap['MaximumStepLength'] = ['0.5']
+        affineMap['MaximumNumberOfIterations'] = [
+            args.affine_maximum_number_of_iterations
+        ]
+        affineMap['Registration'] = [
+            args.affine_registration_method]
+        affineMap['Interpolator'] = [
+            args.affine_interpolator ]
+        affineMap['BSplineInterpolationOrder'] = [
+            args.affine_bspline_interpolation_order]
+        affineMap['FinalBSplineInterpolationOrder'] = [
+            args.affine_final_bspline_interpolation_order]
+        affineMap['NumberOfHistogramBins'] = \
+            args.affine_number_of_histogram_bins.split(",")
+        affineMap['NumberOfResolutions'] = [
+            args.affine_number_of_resolutions]
+        affineMap['MaximumStepLength'] = [
+            args.affine_maximum_step_length]
         parameterMapVector.append(affineMap)
     if bspline:
         bsplineMap = sitk.GetDefaultParameterMap("bspline")
-        bsplineMap['MaximumNumberOfIterations'] = ['5000']
-        bsplineMap['Registration'] = ['MultiMetricMultiResolutionRegistration']
-        bsplineMap['Interpolator'] = ['BSplineInterpolator']
-        bsplineMap['BSplineInterpolationOrder'] = ['3']
+        bsplineMap['MaximumNumberOfIterations'] = [
+            args.bspline_maximum_number_of_iterations ]
+        bsplineMap['Registration'] = [
+            args.bspline_registration_method]
+        bsplineMap['Interpolator'] = [
+            args.bspline_interpolator]
+        bsplineMap['BSplineInterpolationOrder'] = [
+            args.bspline_interpolation_order]
         # increasing make atlas deform more, decrease deform less. should be odd numbers from 3
-        bsplineMap['FinalBSplineInterpolationOrder'] = ['3']
+        bsplineMap['FinalBSplineInterpolationOrder'] = [
+            args.bspline_final_interpolation_order ]
         # increasing make atlas deform more, decrease deform less. should be odd numbers from 3
-        #bsplineMap['FinalGridSpacingInVoxels'] = ['8']
-        bsplineMap['FinalGridSpacingInVoxels'] = FINAL_GRID_SPACING_IN_VOXELS
+        bsplineMap['FinalGridSpacingInVoxels'] = \
+            args.bspline_final_grid_spacing_in_voxels.split(",")
         # increasing make atlas deform less, decrease deform more., current issue might be the gridspacing issue
-        bsplineMap['NumberOfHistogramBins'] = ['4','8','16','32','64']
-        bsplineMap['NumberOfResolutions'] = ['6']
-        bsplineMap['MaximumStepLength'] = ['1']
+        bsplineMap['NumberOfHistogramBins'] = \
+            args.bspline_number_of_histogram_bins.split(",")
+        bsplineMap['NumberOfResolutions'] = \
+            args.bspline_number_of_resolutions
+        bsplineMap['MaximumStepLength'] = \
+            args.bspline_maximum_step_length
         # default : 1
         bsplineMap['ResultImagePixelType'] = ['int']
-        bsplineMap['Metric0Weight'] = ['4']
-        bsplineMap['Metric1Weight'] = ['1000']
-        bsplineMap['Metric2Weight'] = ['1']
+        bsplineMap['Metric0Weight'] = \
+            [ args.bspline_metric_0_weight ]
+        bsplineMap['Metric1Weight'] = \
+            [ args.bspline_metric_1_weight ]
+        bsplineMap['Metric2Weight'] = \
+            [ args.bspline_metric_2_weight ]
         bsplineMap.erase('FinalGridSpacingInPhysicalUnits')
         bsplineMap.erase('GridSpacingSchedule')
         parameterMapVector.append(bsplineMap)
     return parameterMapVector
 
 
-def align(fixed_image, moving_image, aligned_image_path,
+def align(args, fixed_image, moving_image, aligned_image_path,
           points_registration,  moving_points, reference_points,
           transform_parameter_folder = None):
     """Align the files
 
+    :param args: the command-line arguments for the parameter map
     :param fixed_image: the SimpleITK image for the fixed image
     :param moving_path: the SimpleITK moving image
     :param aligned_image_path: path to write the image after alignment or
@@ -128,7 +266,7 @@ def align(fixed_image, moving_image, aligned_image_path,
     :returns: a transform map
     """
     selx = sitk.ElastixImageFilter()
-    parameterMapVector = getParameterMap(False,True,True)
+    parameterMapVector = getParameterMap(args, False,True,True)
     selx.SetParameterMap(parameterMapVector)
 
     if points_registration is True:
@@ -250,7 +388,7 @@ def main():
     aligned_file = args.aligned_file
     fixed_point_file = args.fixed_point_file
     alignment_point_file = args.alignment_point_file
-    transform_pm = align(
+    transform_pm = align(args,
         fixed_image, moving_image, aligned_file, 
         points_registration=args.custom_points_registration,
         moving_points=args.custom_moving_points, 
