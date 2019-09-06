@@ -154,8 +154,8 @@ def parse_args():
                         default="6")
     parser.add_argument("--bspline-maximum-step-length",
                         help="Maximum step length for the bspline alignment step."
-                        " Default = 1.0",
-                        default="1.0")
+                        " Default = 1",
+                        default="1")
     parser.add_argument("--bspline-metric-0-weight",
                         help="Metric 0 weight for the bspline aligment step. "
                         "Default=4",
