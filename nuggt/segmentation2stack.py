@@ -94,11 +94,11 @@ def make_warper(alignment, downsample_factor, grid_spacing, output_shape):
                   for _ in output_shape]
     xa, ya, za = [np.arange(0, _, grid_spacing)
                   for _ in (xe, ye, ze)]
-    src = alignment["moving"]
-    dest = [(x / downsample_factor,
+    src = [(x / downsample_factor,
             y / downsample_factor,
             z / downsample_factor)
-            for x, y, z in  alignment["reference"]]
+           for x, y, z in alignment["moving"]]
+    dest = alignment["reference"]
     warper = Warper(src, dest)
     approximator = warper.approximate(za, ya, xa)
     WARPER = approximator
@@ -114,10 +114,11 @@ def get_stack_dimensions(stack, downsample_factor):
     """
     stack_files = glob.glob(stack)
     if len(stack_files) == 1:
-        return tifffile.imread(stack_files[0]).shape
-    z = len(stack_files)
-    y, x = tifffile.imread(stack_files[0]).shape[:2]
-    return np.array([z, y, x])
+        z, y, x = tifffile.imread(stack_files[0]).shape
+    else:
+        z = len(stack_files)
+        y, x = tifffile.imread(stack_files[0]).shape[:2]
+    return np.array([int(np.ceil(_/ downsample_factor)) for _ in (z, y, x)])
 
 
 def write_one_z(z, dim, path):
