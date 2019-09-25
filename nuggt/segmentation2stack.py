@@ -1,0 +1,176 @@
+import argparse
+import glob
+import json
+import multiprocessing
+import numpy as np
+import os
+from scipy.ndimage import map_coordinates
+import sys
+import tifffile
+import tqdm
+
+from .utils.warp import Warper
+
+def parse_args(args=sys.argv[1:]):
+    parser = argparse.ArgumentParser(
+        description="Convert a segmentation in the reference space\n"
+        "to a segmentation in the sample's space.")
+    parser.add_argument(
+        "--input",
+        help="The input segmentation, a .tiff file",
+        required=True
+    )
+    parser.add_argument(
+        "--alignment",
+        help="An alignment where the reference list of points is in the "
+        "same reference frame as the input and whose moving list of points is "
+        "in the same reference frame as the desired output",
+        required=True
+    )
+    parser.add_argument(
+        "--output",
+        help="The directory for the output file. Files will be written as "
+        "image_xxxx.tiff",
+        required=True
+    )
+    parser.add_argument(
+        "--stack",
+        help="A stack similarly shaped to the desired output. This should "
+        "be in the format of a glob expression, e.g. \"/path/to/*.tiff\".",
+        required=True
+    )
+    parser.add_argument(
+        "--n-cores",
+        help="The number of CPUs to use to process the data.",
+        default=os.cpu_count(),
+        type=int
+    )
+    parser.add_argument(
+        "--downsample-factor",
+        help="Downsample the image by this factor with respect to the output "
+        "stack size and alignment.",
+        default=1.0,
+        type=float
+    )
+    parser.add_argument(
+        "--grid-spacing",
+        help="The number of voxels between nodes in the output space "
+             "for the cuboid approximation spline",
+        default=100,
+        type=int
+    )
+    parser.add_argument(
+        "--silent",
+        help="Don't display the progress bar",
+        action="store_true"
+    )
+    return parser.parse_args()
+
+
+"""The global segmentation goes here."""
+SEG = None
+
+
+"""The global coordinate warper goes here.
+
+The warper converts coordinates in the output space to that of the segmentation
+"""
+WARPER = None
+
+
+def make_warper(alignment, downsample_factor, grid_spacing, output_shape):
+    """
+    Make the global warper for translating between the reference and moving
+    frames of reference.
+
+    :param alignment: the json alignment structure
+    :param downsample_factor: How much to downsample the moving coordinates
+    :param grid_spacing: the grid spacing of the approximator
+    :param output_shape: the shape of the output volume
+    :return:
+    """
+    global WARPER
+    ze, ye, xe = [int(np.ceil(_ / grid_spacing)) * grid_spacing
+                  for _ in output_shape]
+    xa, ya, za = [np.arange(0, _, grid_spacing)
+                  for _ in (xe, ye, ze)]
+    src = alignment["moving"]
+    dest = [(x / downsample_factor,
+            y / downsample_factor,
+            z / downsample_factor)
+            for x, y, z in  alignment["reference"]]
+    warper = Warper(src, dest)
+    approximator = warper.approximate(za, ya, xa)
+    WARPER = approximator
+
+
+def get_stack_dimensions(stack, downsample_factor):
+    """
+    Compute the stack dimensions from the number of images in the stack and
+    the size of the first one.
+    :param stack: a glob expression for the stack's files
+    :param downsample_factor: How much to downsample the stack size
+    :return: the dimensions of the output stack
+    """
+    stack_files = glob.glob(stack)
+    if len(stack_files) == 1:
+        return tifffile.imread(stack_files[0]).shape
+    z = len(stack_files)
+    y, x = tifffile.imread(stack_files[0]).shape[:2]
+    return np.array([z, y, x])
+
+
+def write_one_z(z, dim, path):
+    y, x = np.mgrid[0:dim[0], 0:dim[1]]
+    zz = np.ones(dim, int) * z
+    rz, ry, rx = \
+        WARPER(np.column_stack((zz.flatten(), y.flatten(), x.flatten())))\
+            .transpose()
+    # Make NaN into out-of-bounds so they get set to zero
+    rx[np.isnan(rx)] = -1
+    ry[np.isnan(ry)] = -1
+    rz[np.isnan(rz)] = -1
+    rx, ry, rz = [np.round(_.reshape(dim)).astype(np.int32)
+                  for _ in (rx, ry, rz)]
+    img = map_coordinates(SEG, [rz, ry, rx], order=0, cval=0).astype(SEG.dtype)
+    tifffile.imsave(path, img)
+
+
+def write_output(output, output_dim, silent, n_cores):
+    """
+    Write the output stack
+
+    :param seg: the segmentation
+    :param output: The output directory
+    :param output_dim: The dimensions of the output stack
+    :param silent: if True, don't display the progress bar
+    :param n_cores: # of worker processes to use
+    """
+    with multiprocessing.Pool(n_cores) as pool:
+        futures = []
+        for z in range(0, output_dim[0]):
+            path = os.path.join(output, "img_%04d.tiff" % z)
+            futures.append(pool.apply_async(
+                write_one_z,
+                (z, output_dim[1:], path)
+            ))
+        for future in tqdm.tqdm(futures, disable=silent):
+            future.get()
+
+
+def main(argv=sys.argv[1:]):
+    global SEG
+    args = parse_args(argv)
+    if not os.path.exists(args.output):
+        os.mkdir(args.output)
+    SEG = tifffile.imread(args.input)
+    with open(args.alignment) as fd:
+        alignment = json.load(fd)
+    output_dim = get_stack_dimensions(args.stack, args.downsample_factor)
+    make_warper(alignment, args.downsample_factor, args.grid_spacing,
+                output_dim)
+    write_output(args.output, output_dim, args.silent, args.n_cores)
+
+
+if __name__=="__main__":
+    main()

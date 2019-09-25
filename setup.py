@@ -42,6 +42,7 @@ setup(
         'make-alignment-file=nuggt.make_alignment_file:main',
         'rescale-alignment-file=nuggt.rescale_alignment_file:main',
         'rescale-image-for-alignment=nuggt.rescale_image_for_alignment:main',
+        'segmentation2stack=nuggt.segmentation2stack:main',
         'sitk-align=nuggt.sitk_align:main',
         'yea-nay=nuggt.yea_nay:main'
     ]},

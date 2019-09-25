@@ -108,7 +108,7 @@ is likely the correct choice
 
 **yea-nay** is a tool for quickly separating a list of points into two classes,
 e.g. true positives and false positives. The user is presented with each point
-in turn and can either choose "yea" or "nay" (vote yes for "yea" or vote 
+in turn and can either choose "yea" or "nay" (vote yes for "yea" or vote
 no for "nay"). At the end, the list of points
 in either class is written out. As-yet undecided points are displayed as
 yellow dots, "yea" points are displayed as green dots and "nay" points are
@@ -161,7 +161,7 @@ the reference image, in the reference coordinate frame.
 * **segmentation** is a 3D .tiff file containing the reference segmentation,
 accompanying the reference image.
 * **points-file** is a file to contain (or already containing) the
-moving image reference points and their corresponding points in the 
+moving image reference points and their corresponding points in the
 reference image. **nuggt-align** initially loads the points from this file
 if it exists and, when you save, it overwrites this file with the current
 list of points.
@@ -299,7 +299,7 @@ serve as the keypoints of the transformation.
 file are in the X, Y, Z rather than Z, Y, X order, e.g. if the reference-points
 were created using **nuggt**.
 * **reference-key** is the key name for the reference points in the JSON
-dictionary. The default is "reference", but "moving" may be used if the 
+dictionary. The default is "reference", but "moving" may be used if the
 reference and moving images were switched when creating the initial
 transformation.
 * **moving-key** is the key name for the moving image in the JSON output
@@ -307,7 +307,7 @@ dictionary. The default value is "moving".
 
 The keyword parameters are followed by the positional parameters which are
 a list of TransformParameters.txt files, in the order that they were output
-by the transformation script, e.g. "TransformParameters.0.txt, 
+by the transformation script, e.g. "TransformParameters.0.txt,
 TransformParameters.1.txt".
 
 ## count-points-in-region
@@ -415,7 +415,7 @@ the full-size stack's size and the dimensions of the moving file to scale
 the alignment. If you've transposed the axes, you can correct this using
 the *--x-index*, *--y-index* and *--z-index* switches. If you've flipped axes,
 you can correct this using the *--flip-x*, *--flip-y* and *--flip-z* switches.
-If you clipped any of the axes, you can correct this using 
+If you clipped any of the axes, you can correct this using
 *--clip-x*, *--clip-y* and *--clip-z*. The format of these is identical
 to the format used in **rescale-image-for-alignment** and the parameters that
 you used in **rescale-image-for-alignment** should be duplicated here.
@@ -444,6 +444,39 @@ rescale-alignment-file \
 
 ```
 
+## segmentation2stack
+
+**segmentation2stack** takes a segmentation in the reference space and transforms it into a TIFF stack of segmentation planes in the sample space using an alignment file.
+
+To run:
+
+```commandline
+segmentation2stack \
+    --input <input-segmentation> \
+    --alignment <alignment-file> \
+    --output <output-folder> \
+    --stack <stack-expr> \
+    [--n-cores <n-cores>] \
+    [--downsample-factor <downsample-factor>] \
+    [--grid-spacing <grid-spacing>] \
+    [--silent]
+```
+where
+* **input-segmentation** is the path to the segmentation to be converted to a stack
+* **alignment** is the alignment converting
+the segmentation into the space of the output
+file.
+* **output** is the output directory for the TIFF file stack. If it doesn't exist it will be created.
+* **stack** is the stack (before downsampling) giving the output dimensions
+* **n-cores** the number of CPUs to use
+* **downsample-factor** the output stack and alignment will be rescaled by this factor. For instance, a downsample-factor of 2 will
+create a stack that is 1/2 of the size of
+the inputs in every dimension.
+* **grid-spacing** is the spacing of the
+spline grid in the coordinate system of
+the output stack.
+* **silent** to suppress the progress bar
+
 ## Alignment pipeline
 
 One of the purposes of Nuggt is to align a sample image against the mouse
@@ -470,7 +503,7 @@ be done through automated means not covered here or can be done manually using
 * Make summary statistics using the atlas. This is done using
 **count-points-in-region**.
 
-If you have an atlas autofluorescence file, 
+If you have an atlas autofluorescence file,
 "autofluorescence_half_sagittal.tif", an annotation file,
 "annotation_half_sagittal.tif", a listing file giving the correspondences
 between IDs in the annotation file and brain regions, "AllBrainRegions.csv"
@@ -507,4 +540,3 @@ the sequence of commands might look like this:
 ```
 The result of the analysis will be summarized in analysis.csv as a table
 of brain regions and counts of points that fell into each region.
- 
