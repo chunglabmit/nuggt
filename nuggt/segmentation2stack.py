@@ -130,9 +130,18 @@ def get_stack_dimensions(stack, downsample_factor):
 def write_one_z(z, dim, path, compress):
     y, x = np.mgrid[0:dim[0], 0:dim[1]]
     zz = np.ones(dim, int) * z
-    rz, ry, rx = \
-        WARPER(np.column_stack((zz.flatten(), y.flatten(), x.flatten())))\
-            .transpose()
+    zf, yf, xf = [_.flatten() for _ in (zz, y, x)]
+    batch_size = 10000
+    rx, ry, rz = [ [] for _ in range(3)]
+    for i0 in range(0, np.prod(dim), batch_size):
+        i1 = min(np.prod(dim), i0+batch_size)
+        rzi, ryi, rxi = \
+            WARPER(np.column_stack((zf[i0:i1], yf[i0:i1], xf[i0:i1])))\
+                .transpose()
+        rx.append(rxi)
+        ry.append(ryi)
+        rz.append(rzi)
+    rx, ry, rz = [np.hstack(_) for _ in (rx, ry, rz)]
     # Make NaN into out-of-bounds so they get set to zero
     rx[np.isnan(rx)] = -1
     ry[np.isnan(ry)] = -1
