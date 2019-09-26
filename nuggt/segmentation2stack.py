@@ -64,6 +64,12 @@ def parse_args(args=sys.argv[1:]):
         help="Don't display the progress bar",
         action="store_true"
     )
+    parser.add_argument(
+        "--compress",
+        help="The TIFF compression level: 0-9",
+        type=int,
+        default=3
+    )
     return parser.parse_args()
 
 
@@ -121,7 +127,7 @@ def get_stack_dimensions(stack, downsample_factor):
     return np.array([int(np.ceil(_/ downsample_factor)) for _ in (z, y, x)])
 
 
-def write_one_z(z, dim, path):
+def write_one_z(z, dim, path, compress):
     y, x = np.mgrid[0:dim[0], 0:dim[1]]
     zz = np.ones(dim, int) * z
     rz, ry, rx = \
@@ -134,10 +140,10 @@ def write_one_z(z, dim, path):
     rx, ry, rz = [np.round(_.reshape(dim)).astype(np.int32)
                   for _ in (rx, ry, rz)]
     img = map_coordinates(SEG, [rz, ry, rx], order=0, cval=0).astype(SEG.dtype)
-    tifffile.imsave(path, img)
+    tifffile.imsave(path, img, compress=compress)
 
 
-def write_output(output, output_dim, silent, n_cores):
+def write_output(output, output_dim, silent, n_cores, compress):
     """
     Write the output stack
 
@@ -146,6 +152,7 @@ def write_output(output, output_dim, silent, n_cores):
     :param output_dim: The dimensions of the output stack
     :param silent: if True, don't display the progress bar
     :param n_cores: # of worker processes to use
+    :param compress: the TIFF compression level
     """
     with multiprocessing.Pool(n_cores) as pool:
         futures = []
@@ -153,7 +160,7 @@ def write_output(output, output_dim, silent, n_cores):
             path = os.path.join(output, "img_%04d.tiff" % z)
             futures.append(pool.apply_async(
                 write_one_z,
-                (z, output_dim[1:], path)
+                (z, output_dim[1:], path, compress)
             ))
         for future in tqdm.tqdm(futures, disable=silent):
             future.get()
@@ -170,7 +177,8 @@ def main(argv=sys.argv[1:]):
     output_dim = get_stack_dimensions(args.stack, args.downsample_factor)
     make_warper(alignment, args.downsample_factor, args.grid_spacing,
                 output_dim)
-    write_output(args.output, output_dim, args.silent, args.n_cores)
+    write_output(args.output, output_dim, args.silent, args.n_cores,
+                 args.compress)
 
 
 if __name__=="__main__":
