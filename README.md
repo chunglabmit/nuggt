@@ -181,7 +181,7 @@ is likely the correct choice
 * **--reference-voxel-size** The size of a voxel in the reference image
 (in nanometers). The three sizes should be specified, separated by commas,
 e.g. "1000.0,1000.0,1000.0".
-* **--reference-voxel-size** The size of a voxel in the moving image
+* **--moving-voxel-size** The size of a voxel in the moving image
 (in nanometers). The three sizes should be specified, separated by commas,
 e.g. "1000.0,1000.0,1000.0".
 
