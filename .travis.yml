@@ -21,6 +21,7 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
   - conda install -c simpleitk simpleitk pip numpy
+  - conda install -c conda-forge openjpeg
   - pip install tornado==4.5.3
   - pip install --progress-bar off -r requirements.txt
   - pip install --progress-bar off --editable .
