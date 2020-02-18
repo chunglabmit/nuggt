@@ -23,7 +23,7 @@ install:
   - conda install -c simpleitk simpleitk pip numpy scipy
   - conda install -c conda-forge tifffile
   - conda install -c anaconda requests
-  - conda install -c quanyuan google-apitools
+  - conda install -c idna google-apitools
   - pip install tornado==4.5.3
   - pip install --progress-bar off -r requirements.txt
   - pip install --progress-bar off --editable .
