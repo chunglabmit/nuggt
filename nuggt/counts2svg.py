@@ -132,6 +132,7 @@ def make_intensity_map(data, segment_ids):
         else:
             print("skipping segid=%d" % seg_id)
             count = 0
+            area = 1
         intensity = count / area
         intensity_per_seg_id[seg_id] = intensity
     return intensity_per_seg_id
