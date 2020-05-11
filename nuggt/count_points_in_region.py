@@ -122,7 +122,8 @@ def main():
         try:
             level_id = br.level_per_id[seg_id][level]
         except:
-            level_id = seg_id
+            assert br.id_level[seg_id] < level
+            continue
         if level_id in d:
             count += d[level_id]
         d[level_id] = count
