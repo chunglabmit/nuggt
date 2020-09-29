@@ -35,6 +35,7 @@ setup(
         'count-points-in-region=nuggt.count_points_in_region:main',
         'counts2svg=nuggt.counts2svg:main',
         'crop-coordinates=nuggt.crop_coordinates:main',
+        'filter-points=nuggt.filter_points:main',
         'make-brain-regions-file=nuggt.brain_regions:main',
         'nuggt=nuggt.main:main',
         'nuggt-align=nuggt.align:main',

@@ -83,6 +83,7 @@ class BrainRegions:
         self.id_per_region = {}
         self.name_per_id = {}
         self.acronym_per_id = {}
+        self.id_per_acronym = {}
         self.id_per_region = {}
         self.level_per_id = {}
         self.parent_per_id = {}
@@ -103,6 +104,7 @@ class BrainRegions:
             level = int(fields[level_idx])
             self.name_per_id[idd] = name
             self.acronym_per_id[idd] = acronym
+            self.id_per_acronym[acronym] = idd
             self.name_per_id[idd] = name
             self.id_level[idd] = level
             if parent_id != -1:
@@ -148,6 +150,14 @@ class BrainRegions:
         :returns: the acronym / abbreviation for the brain region
         """
         return self.acronym_per_id[idx]
+
+    def get_acronym_id(self, acronym):
+        """
+        Return the ID for a given acronym
+        :param acronym:
+        :return:
+        """
+        return self.id_per_acronym[acronym]
 
     def get_hierarchy(self, idx):
         """Return the hierchy of brain regions for a given ID

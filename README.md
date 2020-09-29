@@ -524,6 +524,47 @@ spline grid in the coordinate system of
 the output stack.
 * **silent** to suppress the progress bar
 
+## filter-points
+
+**filter-points** filters a points file by segmentation region. The output is
+a points file with only the points from the designated regions in the
+atlas reference segmentation
+
+To run:
+
+```commandline
+filter-points \
+   --points <POINTS> \
+  --segmentation <SEGMENTATION> \
+  --alignment ALIGNMENT \
+  --brain-regions-file BRAIN_REGIONS_FILE \
+  --regions REGIONS \
+  --output OUTPUT \
+  [--n-cores N_CORES]
+```
+
+where
+
+* **POINTS** is the points file to filter. This is a JSON-encoded list in xyz
+  format, for instance the output of detect-blobs
+
+* **SEGMENTATION** is the atlas segmentation file, e.g.
+  annotation_25_whole_sagittal.tif
+
+* **ALIGNMENT** is the alignment file, for instance from rescale-alignment-file
+
+* **BRAIN_REGIONS_FILE** the AllBrainRegions.csv file that has correspondences
+                        between region IDs and names
+
+* **REGIONS** is the acronyms of the regions to be collected e.g. "CTX,CA". This
+  is a comma-delimited list.
+
+* **OUTPUT** is the name of the output file, a json-encoded list of
+                        points in x,y,z format.
+
+* **N_CORES** is the number of cores to use when multiprocessing.
+
+
 ## Alignment pipeline
 
 One of the purposes of Nuggt is to align a sample image against the mouse
@@ -587,3 +628,4 @@ the sequence of commands might look like this:
 ```
 The result of the analysis will be summarized in analysis.csv as a table
 of brain regions and counts of points that fell into each region.
+
