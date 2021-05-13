@@ -70,6 +70,10 @@ def parse_args():
                         type=float,
                         default=1.0,
                         help="Minimum distance between any two annotations.")
+    parser.add_argument("--n-workers",
+                        type=int,
+                        default=multiprocessing.cpu_count(),
+                        help="# of workers to use during warping")
     return parser.parse_args()
 
 
@@ -161,7 +165,8 @@ void main() {
 
     def __init__(self, reference_image, moving_image, segmentation,
                  points_file, reference_voxel_size, moving_voxel_size,
-                 min_distance=1.0):
+                 min_distance=1.0,
+                 n_workers=multiprocessing.cpu_count()):
         """Constructor
 
         :param reference_image: align to this image
@@ -173,10 +178,12 @@ void main() {
         size in nanometers.
         :param moving_voxel_size: the voxel size for the moving image
         :param min_distance: the minimum allowed distance between any two points
+        :param n_workers: # of workers to use when warping
         """
         self.reference_image = reference_image
         self.moving_image = moving_image
         self.segmentation = segmentation
+        self.n_workers = n_workers
         self.moving_images[id(self)] = moving_image
         self.decimation = max(1, np.min(reference_image.shape) // 5)
         n_elems = int(np.prod(self.reference_image.shape))
@@ -649,7 +656,7 @@ void main() {
             for _ in range(3)]
         self.warper = self.warper.approximate(*inputs)
         self.warpers[id(self)] = self.warper
-        with multiprocessing.Pool() as pool:
+        with multiprocessing.Pool(self.n_workers) as pool:
             batch_size = int(
                 np.ceil(len(self.reference_image) /
                         multiprocessing.cpu_count()))
@@ -721,7 +728,8 @@ def main():
     else:
         segmentation = None
     vp = ViewerPair(reference_image, moving_image, segmentation, args.points,
-                    reference_voxel_size, moving_voxel_size)
+                    reference_voxel_size, moving_voxel_size,
+                    n_workers=args.n_workers)
     if not args.no_launch:
         vp.launch_viewers()
     vp.print_viewers()
