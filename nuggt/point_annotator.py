@@ -4,7 +4,8 @@ from nuggt.utils.ngutils import *
 
 class PointAnnotator:
 
-    def __init__(self, viewer, color="yellow"):
+    def __init__(self, viewer, color="yellow", name="points"):
+        self.name = name
         self.points = np.zeros((0, 3))
         self.deleting_points = np.zeros((0, 3))
         self.viewer = viewer
@@ -32,10 +33,10 @@ class PointAnnotator:
 
     def display_points(self):
         with self.viewer.txn() as txn:
-            pointlayer(txn, "points", self.points[:, 0], self.points[:, 1],
+            pointlayer(txn, self.name, self.points[:, 0], self.points[:, 1],
                        self.points[:, 2], self.color)
             if self.deleting_points is not None:
-                pointlayer(txn, "delete-points",
+                pointlayer(txn, "delete-%s" % self.name,
                            self.deleting_points[:, 0],
                            self.deleting_points[:, 1],
                            self.deleting_points[:, 2],
