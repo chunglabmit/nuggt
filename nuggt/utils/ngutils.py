@@ -7,9 +7,9 @@ import numpy as np
 import neuroglancer
 
 """A shader that displays an image as gray in Neuroglancer"""
-gray_shader = """
+gray_shader = """#uicontrol invlerp normalized
 void main() {
-   emitGrayscale(%f * toNormalized(getDataValue()));
+   emitGrayscale(%f * normalized());
 }
 """
 
@@ -76,8 +76,9 @@ if not hasattr(neuroglancer.PointAnnotationLayer, "annotation_color"):
     from neuroglancer.viewer_state import  wrapped_property, optional, text_type
     neuroglancer.PointAnnotationLayer.annotation_color = \
         wrapped_property('annotationColor', optional(text_type))
+        
 
-default_voxel_size = (1000, 1000, 1000)
+default_voxel_size = 1,1,1
 
 
 def soft_max_brightness(img, percentile=99.9):
@@ -96,67 +97,98 @@ def soft_max_brightness(img, percentile=99.9):
     return result
 
 
-def layer(txn, name, img, shader, multiplier, offx=0, offy=0, offz=0,
+def reverse_dimensions(img):
+    for di in range(img.ndim-1):
+        img = np.moveaxis(img, 0, img.ndim - 1 - di)
+    return img
+
+
+def layer(txn, name, img, shader=None, multiplier=1.0, 
+          dimensions=None, offx=0, offy=0, offz=0,
           voxel_size=default_voxel_size):
     """Add an image layer to Neuroglancer
 
-    :param txn: The transaction context of the viewer
-
-    :param name: The name of the layer as displayed in Neuroglancer
-
-    :param img: The image to display
-
+    :param txn: The transaction context of the viewer.
+    :param name: The name of the layer as displayed in Neuroglancer.
+    :param img: The image to display in TCZYX order.
     :param shader: the shader to use when displaying, e.g. gray_shader
-
     :param multiplier: the multiplier to apply to the normalized data value.
     This can be used to brighten or dim the image.
     """
+
     if isinstance(img, str):
-        frac = multiplier
-        source = img
+        source=img
+
     else:
-        frac = multiplier / soft_max_brightness(img)
-        if img.dtype.kind in ("i", "u"):
-            frac = frac * np.iinfo(img.dtype).max
-        source = neuroglancer.LocalVolume(img,
-                                          voxel_offset=(offx, offy, offz),
-                                          voxel_size=voxel_size)
-    txn.layers[name] = neuroglancer.ImageLayer(
-        source=source,
-        shader = shader % frac
+        if dimensions is None:
+            dim_names = ["xyzct"[d] for d in range(img.ndim)]
+            dim_units = ["µm"] * img.ndim
+            dim_scales = [1.0] * img.ndim
+
+            dimensions = neuroglancer.CoordinateSpace(
+                names=dim_names,
+                units=dim_units,
+                scales=dim_scales)
+
+        source = neuroglancer.LocalVolume(
+                    data=reverse_dimensions(img),
+                    dimensions=dimensions,
+                    voxel_offset=(offx, offy, offz))
+
+    shader = shader or gray_shader
+    txn.layers.append(
+        name=name,
+        layer=neuroglancer.ImageLayer(
+            source=source),
+        shader=shader % multiplier
     )
 
 
-def seglayer(txn, name, seg, offx=0, offy=0, offz=0,
+def seglayer(txn, name, seg, 
+             dimensions=None, offx=0, offy=0, offz=0,
              voxel_size=default_voxel_size):
     """Add a segmentation layer
 
     :param txn: the neuroglancer transaction
-
     :param name: the display name of the segmentation
-
     :param seg: the segmentation to display
     """
-    txn.layers[name] = neuroglancer.SegmentationLayer(
-        source=neuroglancer.LocalVolume(
-            seg.astype(np.uint16),
-            voxel_offset=(offx, offy, offz),
-            voxel_size=voxel_size))
+    if isinstance(seg, str):
+        source = seg
+
+    else:
+        if dimensions is None:
+            dim_names = ["xyzct"[d] for d in range(seg.ndim)]
+            dim_units = ["µm"] * seg.ndim
+            dim_scales = [1.0] * seg.ndim
+
+            dimensions = neuroglancer.CoordinateSpace(
+                names=dim_names,
+                units=dim_units,
+                scales=dim_scales)
+
+        source = neuroglancer.LocalVolume(
+            data=reverse_dimensions(seg.astype(np.uint16)),
+            dimensions=dimensions,
+            voxel_offset=(offx, offy, offz))
+
+    txn.layers[name] = neuroglancer.SegmentationLayer(source=source)
+            
+#    txn.layers[name] = neuroglancer.SegmentationLayer(
+#        source=neuroglancer.LocalVolume(
+#            seg.astype(np.uint16),
+#            voxel_offset=(offx, offy, offz),
+#            voxel_size=voxel_size))
 
 
 def pointlayer(txn, name, x, y, z, color):
     """Add a point layer
 
     :param txn: the neuroglancer viewer transaction context
-
     :param name: the displayable name of the point layer
-
     :param x: the x coordinate per point
-
     :param y: the y coordinate per point
-
     :param z: the z coordinate per point
-
     :param color: the color of the points in the layer, e.g. "red", "yellow"
     """
     txn.layers[name] = neuroglancer.PointAnnotationLayer(

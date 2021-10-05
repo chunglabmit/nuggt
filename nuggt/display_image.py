@@ -49,8 +49,20 @@ def main():
     if args.static_content_source is not None:
         neuroglancer.set_static_content_source(url=args.static_content_source)
     neuroglancer.set_server_bind_address(args.ip_address, args.port)
+
+    # Define default dimensions for the viewer
+    dim_names = ["xyzct"[d] for d in range(3)]
+    dim_units = ["µm"] * 3
+    dim_scales = [1.0] * 3
+
+    default_dimensions = neuroglancer.CoordinateSpace(
+        names=dim_names,
+        units=dim_units,
+        scales=dim_scales)
+
     viewer = neuroglancer.Viewer()
     with viewer.txn() as txn:
+        txn.dimensions = default_dimensions
         for filename, name, colorname in zip(args.files_and_colors[::3],
                                              args.files_and_colors[1::3],
                                              args.files_and_colors[2::3]):
@@ -77,10 +89,10 @@ def main():
                 sys.stderr.write("Could not find any files named %s" % filename)
                 exit(1)
             elif len(paths) == 1:
-                img = tifffile.imread(paths[0]).astype(np.float32)
+                img = tifffile.imread(paths[0])
             else:
-                img = np.array([tifffile.imread(_) for _ in paths], np.float32)
-            layer(txn, name, img, shader, 1.0)
+                img = np.array([tifffile.imread(_) for _ in paths])
+            layer(txn, name, img, shader, 1.0, dimensions=default_dimensions)
         if args.segmentation != None:
             seg = tifffile.imread(args.segmentation).astype(np.uint32)
             seglayer(txn, "segmentation", seg)
@@ -93,7 +105,7 @@ def main():
                            points[:, 0], points[:, 1], points[:, 2], "red")
 
     print(viewer.get_viewer_url())
-    webbrowser.open(viewer.get_viewer_url())
+    #webbrowser.open(viewer.get_viewer_url())
     while True:
         time.sleep(5)
 
