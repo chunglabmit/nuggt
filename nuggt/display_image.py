@@ -67,8 +67,9 @@ def main():
             else:
                 shader = cubehelix_shader
             if filename.startswith("precomputed://"):
-                txn.layers[name] = neuroglancer.ImageLayer(
-                    source = filename,
+                txn.layers.append(
+                    name=name,
+                    layer = filename,
                     shader = shader % 1.0
                 )
                 continue

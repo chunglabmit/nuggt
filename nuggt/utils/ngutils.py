@@ -118,13 +118,31 @@ def layer(txn, name, img, shader, multiplier, offx=0, offy=0, offz=0,
         frac = multiplier / soft_max_brightness(img)
         if img.dtype.kind in ("i", "u"):
             frac = frac * np.iinfo(img.dtype).max
-        source = neuroglancer.LocalVolume(img,
-                                          voxel_offset=(offx, offy, offz),
-                                          voxel_size=voxel_size)
-    txn.layers[name] = neuroglancer.ImageLayer(
-        source=source,
-        shader = shader % frac
-    )
+        try:
+            source = neuroglancer.LocalVolume(
+                data=img,
+                dimensions=neuroglancer.CoordinateSpace(
+                    names=["x", "y", "z"],
+                    units=["nm", "nm", "nm"],
+                    scales=voxel_size
+                ),
+                volume_type="image",
+                voxel_offset=(offx, offy, offz)
+            )
+            txn.layers.append(
+                name=name,
+                layer=source,
+                shader=shader % frac
+            )
+        except:
+            # Neuroglancer 1.0
+            source = neuroglancer.LocalVolume(img,
+                                              voxel_offset=(offx, offy, offz),
+                                              voxel_size=voxel_size)
+            txn.layers[name] = neuroglancer.ImageLayer(
+                source=source,
+                shader = shader % frac
+            )
 
 
 def seglayer(txn, name, seg, offx=0, offy=0, offz=0,
@@ -137,14 +155,29 @@ def seglayer(txn, name, seg, offx=0, offy=0, offz=0,
 
     :param seg: the segmentation to display
     """
-    txn.layers[name] = neuroglancer.SegmentationLayer(
-        source=neuroglancer.LocalVolume(
+    try:
+        source = neuroglancer.LocalVolume(
+            seg.astype(np.uint16),
+            dimensions=neuroglancer.CoordinateSpace(
+                    names=["x", "y", "z"],
+                    units=["nm", "nm", "nm"],
+                    scales=voxel_size
+                ),
+            voxel_offset=(offx, offy, offz),
+            volume_type="segmentation"
+        )
+    except:
+        source = neuroglancer.LocalVolume(
             seg.astype(np.uint16),
             voxel_offset=(offx, offy, offz),
-            voxel_size=voxel_size))
+            voxel_size=voxel_size)
+    txn.layers[name] = neuroglancer.SegmentationLayer(source=source)
 
 
-def pointlayer(txn, name, x, y, z, color):
+def pointlayer(txn, name, x, y, z,
+               color="yellow",
+               size=10,
+               voxel_size=default_voxel_size):
     """Add a point layer
 
     :param txn: the neuroglancer viewer transaction context
@@ -158,11 +191,38 @@ def pointlayer(txn, name, x, y, z, color):
     :param z: the z coordinate per point
 
     :param color: the color of the points in the layer, e.g. "red", "yellow"
+
+    :param size: the size of the points (in points?)
+
+    :param voxel_size: the size of a voxel (x, y, z)
     """
-    txn.layers[name] = neuroglancer.PointAnnotationLayer(
-        points=np.column_stack((x, y, z)),
-        annotation_color=color
+    dimensions = neuroglancer.CoordinateSpace(
+        names=["x", "y", "z"],
+        units=["nm", "nm", "nm"],
+        scales=voxel_size
     )
+    layer = neuroglancer.LocalAnnotationLayer(
+        dimensions=dimensions,
+        annotation_properties=[
+            neuroglancer.AnnotationPropertySpec(
+                id='color',
+                type='rgb',
+                default=color,
+            ),
+            neuroglancer.AnnotationPropertySpec(
+                id='size',
+                type='float32',
+                default=size,
+            )
+        ],
+        annotations=[
+            neuroglancer.PointAnnotation(
+                id=i + 1,
+                point=[zz, yy, xx])
+            for i, (xx, yy, zz) in enumerate(zip(x, y, z))
+        ]
+    )
+    txn.layers[name]=layer
 
 
 def bboxlayer(txn, name, x0, x1, y0, y1, z0, z1):
