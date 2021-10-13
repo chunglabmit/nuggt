@@ -40,7 +40,7 @@ def main():
                         help="The URL of the static content source, e.g. "
                         "http://localhost:8080 if being served via npm.")
     parser.add_argument("--points",
-                        help="A points file in X, Y, Z order to display")
+                        help="A points file in Z, Y, X order to display")
     parser.add_argument("--show-n",
                         type=int,
                         help="Show only a certain number of randomly selected "
