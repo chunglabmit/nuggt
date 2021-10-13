@@ -17,7 +17,8 @@ import time
 import webbrowser
 
 from .utils.warp import Warper
-from .utils.ngutils import layer, red_shader, gray_shader, green_shader
+from .utils.ngutils import layer, seglayer, pointlayer
+from .utils.ngutils import red_shader, gray_shader, green_shader
 from .utils.ngutils import soft_max_brightness
 
 # Monkey-patch neuroglancer.PointAnnotationLayer to have a color
@@ -201,6 +202,7 @@ void main() {
         self.min_distance = min_distance
         self.load_points()
         self.init_state()
+        self.refresh_brightness()
 
     @property
     def alignment_image(self):
@@ -242,13 +244,15 @@ void main() {
 
     @property
     def annotation_reference_pts(self):
-        """Reference points in x, y, z order"""
-        return [_[::-1] for _ in self.reference_pts]
+        """Reference points in z, y, x order"""
+        #return [_[::-1] for _ in self.reference_pts]
+        return self.reference_pts
 
     @property
     def annotation_moving_pts(self):
-        """Moving points in x, y, z order"""
-        return [_[::-1] for _ in self.moving_pts]
+        """Moving points in z, y, x order"""
+        #return [_[::-1] for _ in self.moving_pts]
+        return self.moving_pts
 
     def init_actions(self, viewer, on_annotate):
         """Initialize the actions for a viewer
@@ -429,15 +433,27 @@ void main() {
     def edit_point(self, idx, add_to_undo=True):
         reference, moving = self.remove_point(idx, add_to_undo)
         with self.reference_viewer.txn() as txn:
-            txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
-                points=[reference[::-1]],
-                annotation_color=self.EDIT_ANNOTATION_COLOR)
-            txn.position.voxel_coordinates = reference[::-1]
+            #txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
+            #    points=[reference[::-1]],
+            #    annotation_color=self.EDIT_ANNOTATION_COLOR)
+            pointlayer(
+                txn, self.EDIT, 
+                [reference[0]], [reference[1]], [reference[2]],
+                color=self.EDIT_ANNOTATION_COLOR,
+                voxel_size=self.reference_voxel_size)
+            #txn.position.voxel_coordinates = reference[::-1]
+            txn.position = reference[::-1]
         with self.moving_viewer.txn() as txn:
-            txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
-                points=[moving[::-1]],
-                annotation_color=self.EDIT_ANNOTATION_COLOR)
-            txn.position.voxel_coordinates = moving[::-1]
+            #txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
+            #    points=[moving[::-1]],
+            #    annotation_color=self.EDIT_ANNOTATION_COLOR)
+            pointlayer(
+                txn, self.EDIT, 
+                [moving[0]], [moving[1]], [moving[2]],
+                color=self.EDIT_ANNOTATION_COLOR,
+                voxel_size=self.moving_voxel_size)
+            #txn.position.voxel_coordinates = moving[::-1]
+            txn.position = moving[::-1]
 
     def on_next(self, s):
         """Save the current edit and move to the next point"""
@@ -474,7 +490,11 @@ void main() {
             ma = self.moving_viewer.state.layers[self.EDIT].points
         if len(ma) == 0:
             return None
-        return ma[0].point[::-1].tolist()
+        points = ma[0].point.tolist()[::-1] # reverse it back to zyx order
+        self.post_message(self.moving_viewer, self.EDIT,
+                "Get the moving edit point at %d, %d, %d" %
+                tuple(points)[::-1])
+        return points
 
     def get_reference_edit_point(self):
         """Get the current edit point in the reference frame"""
@@ -484,7 +504,11 @@ void main() {
             ra = self.reference_viewer.state.layers[self.EDIT].points
         if len(ra) == 0:
             return None
-        return ra[0].point[::-1].tolist()
+        points = ra[0].point.tolist()[::-1] # reverse it back to zyx order
+        self.post_message(self.reference_viewer, self.EDIT,
+                "Get the reference edit point at %d, %d, %d" %
+                tuple(points)[::-1])
+        return points
 
     def add_point(self, idx, reference_point, moving_point, add_to_undo=True):
         """Add a point to the reference and moving points list
@@ -529,12 +553,12 @@ void main() {
         """
         reference_point = self.reference_pts.pop(idx)
         self.post_message(self.reference_viewer, self.EDIT,
-                          "removed point at %d, %d, %d" %
-                          tuple(reference_point[::-1]))
+                          "removed point %d at %d, %d, %d" %
+                          tuple([idx] + list(reference_point[::-1])))
         moving_point = self.moving_pts.pop(idx)
         self.post_message(self.moving_viewer, self.EDIT,
-                          "removed point at %d, %d, %d" %
-                          tuple(moving_point[::-1]))
+                          "removed point %d at %d, %d, %d" %
+                          tuple([idx] + list(moving_point[::-1])))
         entry = (self.add_point, (idx, reference_point, moving_point,
                                   not add_to_undo))
         if add_to_undo:
@@ -545,16 +569,21 @@ void main() {
         return reference_point, moving_point
 
     def update_after_edit(self):
-        for viewer, points in ((self.reference_viewer,
-                                self.annotation_reference_pts),
-                               (self.moving_viewer,
-                                self.annotation_moving_pts)):
+        for viewer, points, voxel_size in ((self.reference_viewer,
+                                            self.annotation_reference_pts,
+                                            self.reference_voxel_size),
+                                           (self.moving_viewer,
+                                            self.annotation_moving_pts,
+                                            self.moving_voxel_size)):
+            points = np.array(points, dtype=np.float32)
             with viewer.txn() as txn:
-                layer = txn.layers[self.CORRESPONDENCE_POINTS]
-                txn.layers[self.CORRESPONDENCE_POINTS] = \
-                    neuroglancer.PointAnnotationLayer(points=points)
-                txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
-                    annotation_color=self.EDIT_ANNOTATION_COLOR)
+                pointlayer(
+                    txn, self.CORRESPONDENCE_POINTS,
+                    points[:, 0], points[:, 1], points[:, 2],
+                    voxel_size=voxel_size)
+                pointlayer(
+                    txn, self.EDIT, np.zeros(0), np.zeros(0), np.zeros(0),
+                    color=self.EDIT_ANNOTATION_COLOR, voxel_size=voxel_size)
 
     def on_refresh(self, s):
         self.refresh()
@@ -562,25 +591,26 @@ void main() {
     def refresh(self):
         """Refresh both views"""
         with self.moving_viewer.txn() as s:
-            s.voxel_size = self.moving_voxel_size
+            s.dimensions = neuroglancer.CoordinateSpace(
+                  names=["x", "y", "z"],
+                  units=["µm"],
+                  scales=self.moving_voxel_size)
             layer(s, self.IMAGE, self.moving_image, gray_shader,
                   self.moving_brightness,
-                  voxel_size=s.voxel_size)
+                  voxel_size=self.moving_voxel_size)
         with self.reference_viewer.txn() as s:
-            s.voxel_size = self.reference_voxel_size
+            s.dimensions = neuroglancer.CoordinateSpace(
+                  names=["x", "y", "z"],
+                  units=["µm"],
+                  scales=self.reference_voxel_size)
             layer(s, self.REFERENCE, self.reference_image, red_shader,
                   self.reference_brightness,
-                  voxel_size=s.voxel_size)
+                  voxel_size=self.reference_voxel_size)
             layer(s, self.ALIGNMENT, self.alignment_image, green_shader,
                   self.moving_brightness,
-                  voxel_size=s.voxel_size)
+                  voxel_size=self.moving_voxel_size)
             if self.segmentation is not None:
-                s.layers[self.SEGMENTATION] = neuroglancer.SegmentationLayer(
-                    source=neuroglancer.LocalVolume(
-                        self.segmentation,
-                        voxel_size=s.voxel_size
-                    )
-                )
+                seglayer(s, self.SEGMENTATION, self.segmentation)
 
     def on_undo(self, s):
         """Undo the last operation"""
@@ -602,12 +632,12 @@ void main() {
         """Translate the editing coordinate in the reference frame to moving"""
         rp = self.get_reference_edit_point()
         if self.warper != None and rp:
-            mp = self.warper(np.atleast_2d(rp))[0][::-1]
+            mp = self.warper(np.atleast_2d(rp))[0]
             with self.moving_viewer.txn() as txn:
                 txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
-                    points=[mp],
+                    points=[mp[::-1]],
                     annotation_color=self.EDIT_ANNOTATION_COLOR)
-                txn.position.voxel_coordinates = mp
+                txn.position = mp[::-1]
 
     def on_save(self, s):
         """Handle a point-save action
@@ -627,18 +657,18 @@ void main() {
             "Warping alignment image to reference... (patience please)"
         self.reference_viewer.config_state.set_state(
              cs, existing_generation=generation)
-        ioloop = neuroglancer.server.global_server.ioloop
-        cb = ioloop._callbacks.pop()
-        try:
-            ioloop._run_callback(cb)
-        except:
-            ioloop._callbacks.push(cb)
+#        ioloop = neuroglancer.server.global_server.ioloop
+#        cb = ioloop._callbacks.pop()
+#        try:
+#            ioloop._run_callback(cb)
+#        except:
+#            ioloop._callbacks.push(cb)
         try:
             self.align_image()
             with self.reference_viewer.txn() as txn:
-                txn.voxel_size = self.reference_voxel_size
                 layer(txn, self.ALIGNMENT, self.alignment_image,
-                      green_shader, 1.0, voxel_size=txn.voxel_size),
+                      green_shader, 1.0, voxel_size=self.reference_voxel_size),
+            self.refresh_brightness()
             self.post_message(self.reference_viewer, self.WARP_ACTION,
                     "Warping complete, thank you for your patience.")
         except:
@@ -715,9 +745,9 @@ def main():
     if args.static_content_source is not None:
         neuroglancer.set_static_content_source(url=args.static_content_source)
     reference_voxel_size = \
-        [float(_)*1000 for _ in args.reference_voxel_size.split(",")]
+        [float(_)*1 for _ in args.reference_voxel_size.split(",")]
     moving_voxel_size = \
-        [float(_)*1000 for _ in args.moving_voxel_size.split(",")]
+        [float(_)*1 for _ in args.moving_voxel_size.split(",")]
     logging.info("Reading reference image")
     reference_image = tifffile.imread(args.reference_image).astype(np.float32)
     logging.info("Reading moving image")

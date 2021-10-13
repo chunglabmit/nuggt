@@ -7,9 +7,9 @@ import numpy as np
 import neuroglancer
 
 """A shader that displays an image as gray in Neuroglancer"""
-gray_shader = """#uicontrol invlerp normalized
+gray_shader = """
 void main() {
-   emitGrayscale(%f * normalized());
+   emitGrayscale(%f * toNormalized(getDataValue()));
 }
 """
 
@@ -69,6 +69,13 @@ void main() {
     emitRGB(result);
 }
 """
+
+pointlayer_shader = """
+void main() {
+   setColor(prop_color()); 
+   setPointMarkerSize(prop_size());
+}"""
+
 #
 # Monkey-patch Neuroglancer to control the color of the annotation dots
 #
@@ -136,12 +143,14 @@ def layer(txn, name, img, shader=None, multiplier=1.0,
                     voxel_offset=(offx, offy, offz))
 
     shader = shader or gray_shader
-    txn.layers.append(
-        name=name,
-        layer=neuroglancer.ImageLayer(
-            source=source),
-        shader=shader % multiplier
-    )
+
+    txn.layers[name] = neuroglancer.ImageLayer(source=source, shader=shader % multiplier)
+#    txn.layers.append(
+#        name=name,
+#        layer=neuroglancer.ImageLayer(
+#            source=source),
+#        shader=shader % multiplier
+#    )
 
 
 def seglayer(txn, name, seg, 
@@ -181,8 +190,12 @@ def seglayer(txn, name, seg,
 #            voxel_size=voxel_size))
 
 
-def pointlayer(txn, name, x, y, z, color):
-    """Add a point layer
+def pointlayer(txn, name, x, y, z, 
+               color="yellow",
+               size=5,
+               shader=pointlayer_shader,
+               voxel_size=default_voxel_size):
+    """Add a point layer.
 
     :param txn: the neuroglancer viewer transaction context
     :param name: the displayable name of the point layer
@@ -190,12 +203,38 @@ def pointlayer(txn, name, x, y, z, color):
     :param y: the y coordinate per point
     :param z: the z coordinate per point
     :param color: the color of the points in the layer, e.g. "red", "yellow"
+    :param size: the size of the points
+    :param voxel_size: the size of a voxel (x, y, z)
     """
-    txn.layers[name] = neuroglancer.PointAnnotationLayer(
-        points=np.column_stack((x, y, z)),
-        annotation_color=color
-    )
 
+    dimensions = neuroglancer.CoordinateSpace(
+        names=["x", "y", "z"],
+        units=["µm", "µm", "µm"],
+        scales=voxel_size
+    )
+    layer = neuroglancer.LocalAnnotationLayer(
+        dimensions=dimensions,
+        annotation_properties=[
+            neuroglancer.AnnotationPropertySpec(
+                id='color',
+                type='rgb',
+                default=color,
+            ),
+            neuroglancer.AnnotationPropertySpec(
+                id='size',
+                type='float32',
+                default=float(size),
+            )
+        ],
+        annotations=[
+            neuroglancer.PointAnnotation(
+                id=i + 1,
+                point=[zz, yy, xx]) # input points should be in zyx order
+            for i, (xx, yy, zz) in enumerate(zip(x, y, z))
+        ],
+        shader=shader
+    )
+    txn.layers[name]=layer
 
 def bboxlayer(txn, name, x0, x1, y0, y1, z0, z1):
     """Add a bounding box layer
