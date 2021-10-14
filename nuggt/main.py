@@ -444,8 +444,7 @@ def main():
                         default="127.0.0.1")
     parser.add_argument("--static-content-source",
                         default=None,
-                        help="The URL of the static content source, e.g. "
-                        "http://localhost:8080 if being served via npm.")
+                        help="Obsolete - has no effect")
     parser.add_argument("--reference-image",
                         help="An image of a reference volume to be used "
                         "for navigation.")
@@ -481,7 +480,9 @@ def main():
         box_coordinates = list(map(int, args.box_coordinates.split(",")))
         box_coordinates = [box_coordinates[::2], box_coordinates[1::2]]
     if args.static_content_source is not None:
-        neuroglancer.set_static_content_source(url=args.static_content_source)
+        print("--static-content-source no longer has any effect",
+              file=sys.stderr)
+        print("You can remove it from your command-line", file=sys.stderr)
 
     if args.coordinates:
         x0, x1, y0, y1, z0, z1 = list(map(int, args.coordinates.split(",")))
