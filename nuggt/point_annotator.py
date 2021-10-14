@@ -2,6 +2,18 @@ import numpy as np
 import neuroglancer
 from nuggt.utils.ngutils import *
 
+def to_um(scale:neuroglancer.DimensionScale):
+    if scale.unit == 'm':
+        return scale.scale * 1000 * 1000
+    elif scale.unit == 'mm':
+        return scale.scale * 1000
+    elif scale.unit == 'um':
+        return scale.scale
+    elif scale.unit == 'nm':
+        return scale / 1000
+    raise ValueError("Unknown scale: %s" % scale.unit)
+
+
 class PointAnnotator:
 
     def __init__(self, viewer, color="yellow", name="points"):
@@ -33,14 +45,21 @@ class PointAnnotator:
 
     def display_points(self):
         with self.viewer.txn() as txn:
-            pointlayer(txn, self.name, self.points[:, 0], self.points[:, 1],
-                       self.points[:, 2], self.color)
+            if isinstance(txn.dimensions, neuroglancer.CoordinateSpace) and \
+                    txn.dimensions.rank == 3:
+                voxel_size = [to_um(txn.dimensions[i]) for i in range(3)]
+            else:
+                voxel_size = default_voxel_size
+            pointlayer(txn, self.name, self.points[:, 2], self.points[:, 1],
+                       self.points[:, 0], self.color,
+                       voxel_size=voxel_size)
             if self.deleting_points is not None:
                 pointlayer(txn, "delete-%s" % self.name,
-                           self.deleting_points[:, 0],
-                           self.deleting_points[:, 1],
                            self.deleting_points[:, 2],
-                           "red")
+                           self.deleting_points[:, 1],
+                           self.deleting_points[:, 0],
+                           "red",
+                           voxel_size=voxel_size)
             if self.box_coords is not None:
                 box = neuroglancer.AxisAlignedBoundingBoxAnnotation()
                 box.point_a = self.box_coords[0]
@@ -56,7 +75,7 @@ class PointAnnotator:
             txn.status_messages[category] = msg
 
     def on_annotate_point(self, s):
-        point = np.array(s.mouse_voxel_coordinates)
+        point = np.array(s.mouse_voxel_coordinates)[::-1]
         neighbors = self.find_nearby_points(point)
         if len(neighbors) > 0:
             self.say("Point too close to some other point!", "annotation")
@@ -90,7 +109,7 @@ class PointAnnotator:
             return result[order]
 
     def on_delete_point(self, s):
-        point = np.array(s.mouse_voxel_coordinates)
+        point = np.array(s.mouse_voxel_coordinates)[::-1]
         neighbors, indexes = self.find_nearby_points(point, return_index=True)
         if len(neighbors) == 0:
             self.say("No nearby point", "delete")
@@ -117,7 +136,7 @@ class PointAnnotator:
         self.display_points()
 
     def start_selection_handler(self, s):
-        point = np.array(s.mouse_voxel_coordinates)
+        point = np.array(s.mouse_voxel_coordinates)[::-1]
         if self.box_coords is None:
             self.box_coords = [point, point + 20]
         else:
@@ -125,7 +144,7 @@ class PointAnnotator:
         self.partition_points()
 
     def extend_selection_handler(self, s):
-        point = np.array(s.mouse_voxel_coordinates)
+        point = np.array(s.mouse_voxel_coordinates)[::-1]
         if self.box_coords is None:
             self.box_coords = [point-20, point]
         else:
