@@ -5,6 +5,8 @@
 from copy import deepcopy
 import numpy as np
 import neuroglancer
+import requests
+import typing
 
 """A shader that displays an image as gray in Neuroglancer"""
 gray_shader = """
@@ -286,3 +288,18 @@ def post_message_immediately(viewer, topic, message):
         ioloop._run_callback(cb)
     except:
         ioloop._callbacks.push(cb)
+
+def get_source_voxel_size(url: str) -> typing.Tuple[float, float, float]:
+    '''
+    Find the voxel size of a Neuroglancer source from the info file
+
+    :param url: the URL of the neuroglancer precomputed source,
+    e.g. "https://leviathan-chunglab.mit.edu/precomputed/data-source"
+    :returns: a 3-tuple of X, Y and Z voxel size
+    '''
+    info_url = url + "/info"
+    response = requests.get(info_url, headers=dict(accept="application/json"))
+    info = response.json()
+    return tuple([_ / 1000 for _ in info["scales"][0]["resolution"]])
+
+

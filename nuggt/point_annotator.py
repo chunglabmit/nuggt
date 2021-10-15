@@ -16,9 +16,10 @@ def to_um(scale:neuroglancer.DimensionScale):
 
 class PointAnnotator:
 
-    def __init__(self, viewer, color="yellow", name="points"):
+    def __init__(self, viewer, color="yellow", name="points", voxel_size=default_voxel_size):
         self.name = name
         self.points = np.zeros((0, 3))
+        self.voxel_size = default_voxel_size
         self.deleting_points = np.zeros((0, 3))
         self.viewer = viewer
         self.color = color
@@ -39,36 +40,37 @@ class PointAnnotator:
             s.input_event_bindings.viewer["bracketright"] = "extend-selection"
             s.input_event_bindings.viewer["shift+keyx"] = "delete-selected"
 
-    def set_points(self, points):
+    def set_points(self, points, txn=None):
         self.points = points
-        self.display_points()
+        if txn is None:
+            self.display_points()
+        else:
+            self.display_points_txn(txn)
 
     def display_points(self):
         with self.viewer.txn() as txn:
-            if isinstance(txn.dimensions, neuroglancer.CoordinateSpace) and \
-                    txn.dimensions.rank == 3:
-                voxel_size = [to_um(txn.dimensions[i]) for i in range(3)]
-            else:
-                voxel_size = default_voxel_size
-            pointlayer(txn, self.name, self.points[:, 2], self.points[:, 1],
-                       self.points[:, 0], self.color,
-                       voxel_size=voxel_size)
-            if self.deleting_points is not None:
-                pointlayer(txn, "delete-%s" % self.name,
-                           self.deleting_points[:, 2],
-                           self.deleting_points[:, 1],
-                           self.deleting_points[:, 0],
-                           "red",
-                           voxel_size=voxel_size)
-            if self.box_coords is not None:
-                box = neuroglancer.AxisAlignedBoundingBoxAnnotation()
-                box.point_a = self.box_coords[0]
-                box.point_b = self.box_coords[1]
-                box.id = "selection"
-                txn.layers["selection"] = neuroglancer.AnnotationLayer(
-                    annotations=[box])
-            elif "selection" in txn.layers:
-                del txn.layers["selection"]
+            self.display_points_txn(txn)
+
+    def display_points_txn(self, txn):
+        pointlayer(txn, self.name, self.points[:, 2], self.points[:, 1],
+                   self.points[:, 0], self.color,
+                   voxel_size=self.voxel_size)
+        if self.deleting_points is not None:
+            pointlayer(txn, "delete-%s" % self.name,
+                       self.deleting_points[:, 2],
+                       self.deleting_points[:, 1],
+                       self.deleting_points[:, 0],
+                       "red",
+                       voxel_size=self.voxel_size)
+        if self.box_coords is not None:
+            box = neuroglancer.AxisAlignedBoundingBoxAnnotation()
+            box.point_a = self.box_coords[0]
+            box.point_b = self.box_coords[1]
+            box.id = "selection"
+            txn.layers["selection"] = neuroglancer.AnnotationLayer(
+                annotations=[box])
+        elif "selection" in txn.layers:
+            del txn.layers["selection"]
 
     def say(self, msg, category):
         with self.viewer.config_state.txn() as txn:
