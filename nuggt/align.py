@@ -575,6 +575,8 @@ void main() {
                                             self.annotation_moving_pts,
                                             self.moving_voxel_size)):
             points = np.array(points, dtype=np.float32)
+            if len(points) == 0:
+                points = points.reshape(0, 3)
             with viewer.txn() as txn:
                 pointlayer(
                     txn, self.CORRESPONDENCE_POINTS,
