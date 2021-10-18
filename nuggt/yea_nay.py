@@ -5,6 +5,8 @@
 
 import argparse
 import json
+import sys
+
 import neuroglancer
 from nuggt.utils.ngutils import *
 import tifffile
@@ -178,7 +180,7 @@ class NuggtYeaNay:
 
     def go_to(self):
         with self.viewer.txn() as txn:
-            txn.position.voxel_coordinates = self.points[self.idx, ::-1]
+            txn.position = self.points[self.idx]
 
 
 def sort_points(imgs, points, launch_ui=False, save_cb=None):
@@ -266,12 +268,12 @@ def main():
                         action="store_true")
     parser.add_argument("--static-content-source",
                         default=None,
-                        help="The URL of the static content source, e.g. "
-                        "http://localhost:8080 if being served via npm.")
+                        help="Obsolete - does nothing")
 
     args = parser.parse_args()
     if args.static_content_source != None:
-        neuroglancer.set_static_content_source(url=args.static_content_source)
+        print("Warning: --static-content-source is no longer needed and has"
+              " no effect", file=sys.stderr)
     neuroglancer.set_server_bind_address(args.bind_address, bind_port=args.port)
 
     with open(args.input_coordinates) as fd:

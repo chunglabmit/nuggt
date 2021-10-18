@@ -78,8 +78,7 @@ nuggt-display \
     [--segmentation <segmentation>] \
     [--points <points>] \
     [--ip-address <ip-address>] \
-    [--port <port>] \
-    [--static-content-source <static-content-source>]
+    [--port <port>] 
 ```
 
 The triplet of <image-file>, <name> and <color> can be repeated
@@ -99,10 +98,6 @@ choices are *0.0.0.0* for all NICs on your machine or the IP address
 of your machine on the network.
 * **--port** the port number to bind to. The port number that the server
 binds to. By default, *nuggt-align* uses any available port.
-* **--static-content-source** the URL of the Node server serving the
-static content. Default is to use the Neuroglancer default. If you are
-running `npm run python-dev-server` on your machine, "http://localhost:8080"
-is likely the correct choice
 
 ##yea-nay
 
@@ -149,7 +144,6 @@ Run **nuggt-align** like this:
               [--no-launch] \
               [--ip-address <ip-address>] \
               [--port <port>] \
-              [--static-content-source <static-content-url>] \
               [--reference-voxel-size <reference-voxel-size>] \
               [--moving-voxel-size <moving-voxel-size]
 ```
@@ -174,10 +168,6 @@ choices are *0.0.0.0* for all NICs on your machine or the IP address
 of your machine on the network.
 * **--port** the port number to bind to. The port number that the server
 binds to. By default, *nuggt-align* uses any available port.
-* **--static-content-source** the URL of the Node server serving the
-static content. Default is to use the Neuroglancer default. If you are
-running `npm run python-dev-server` on your machine, "http://localhost:8080"
-is likely the correct choice
 * **--reference-voxel-size** The size of a voxel in the reference image
 (in nanometers). The three sizes should be specified, separated by commas,
 e.g. "1000.0,1000.0,1000.0".
