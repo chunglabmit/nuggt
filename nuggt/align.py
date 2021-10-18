@@ -409,7 +409,11 @@ void main() {
 
     def refresh_brightness(self):
         max_reference_img = soft_max_brightness(self.reference_image)
+        if self.reference_image.dtype.kind in ("i", "u"):
+            max_reference_img /= np.iinfo(self.reference_image.dtype).max
         max_moving_img = soft_max_brightness(self.moving_image)
+        if self.moving_image.dtype.kind in ("i", "u"):
+            max_moving_img /= np.iinfo(self.moving_image.dtype).max
         with self.reference_viewer.txn() as txn:
             txn.layers[self.REFERENCE].layer.shader = \
                 red_shader % (self.reference_brightness / max_reference_img)
