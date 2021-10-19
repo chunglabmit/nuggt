@@ -14,6 +14,7 @@ import os
 from scipy.ndimage import map_coordinates
 import tifffile
 import time
+import tqdm
 import webbrowser
 
 from .utils.warp import Warper
@@ -412,13 +413,19 @@ void main() {
         if self.reference_image.dtype.kind in ("i", "u"):
             max_reference_img /= np.iinfo(self.reference_image.dtype).max
         max_moving_img = soft_max_brightness(self.moving_image)
+        if hasattr(self, "alignment_image"):
+            max_align_img = soft_max_brightness(self.alignment_image)
+            if self.alignment_image.dtype.kind in ("i", "u"):
+                max_align_img /= np.iinfo(self.moving_image.dtype).max
+        else:
+            max_align_img = max_moving_img
         if self.moving_image.dtype.kind in ("i", "u"):
             max_moving_img /= np.iinfo(self.moving_image.dtype).max
         with self.reference_viewer.txn() as txn:
             txn.layers[self.REFERENCE].layer.shader = \
                 red_shader % (self.reference_brightness / max_reference_img)
             txn.layers[self.ALIGNMENT].layer.shader = \
-                green_shader % (self.moving_brightness / max_moving_img)
+                green_shader % (self.moving_brightness / max_align_img)
         with self.moving_viewer.txn() as txn:
             txn.layers[self.IMAGE].layer.shader = \
                 gray_shader % (self.moving_brightness / max_moving_img)
@@ -692,17 +699,15 @@ void main() {
         self.warper = self.warper.approximate(*inputs)
         self.warpers[id(self)] = self.warper
         with multiprocessing.Pool(self.n_workers) as pool:
-            batch_size = int(
-                np.ceil(len(self.reference_image) /
-                        multiprocessing.cpu_count()))
             futures = []
-            for z0 in range(0, self.reference_image.shape[0], batch_size):
-                z1 = min(z0+batch_size, self.reference_image.shape[0])
+            for z0 in range(0, self.reference_image.shape[0]):
+                z1 = z0 + 1
                 futures.append(
                     pool.apply_async(warp_image,
                                      (z0, z1, id(self), self.reference_image.shape)))
             pool.close()
-            for future in futures:
+            for future in tqdm.tqdm(futures,
+                                    desc="Warping image"):
                 future.get()
 
     def print_viewers(self):

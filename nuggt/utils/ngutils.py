@@ -8,46 +8,57 @@ import neuroglancer
 import requests
 import typing
 
+class Shader:
+
+    def __init__(self, shader):
+        self.shader = shader
+
+    def __mod__(self, frac):
+        max = frac * 4
+        ctrl = f"# uicontrol float brightness slider(min=0.0,max={max},default={frac})"
+        return "\n".join([ctrl, self.shader])
+
+
 """A shader that displays an image as gray in Neuroglancer"""
-gray_shader = """
+gray_shader = Shader("""
 void main() {
-   emitGrayscale(%f * toNormalized(getDataValue()));
+   emitGrayscale(brightness * toNormalized(getDataValue()));
 }
-"""
+""")
 
 """A shader that displays an image in red in Neuroglancer"""
-red_shader = """
+red_shader = Shader("""
 void main() {
-   emitRGB(vec3(%f * toNormalized(getDataValue()), 0, 0));
+   emitRGB(vec3(brightness * toNormalized(getDataValue()), 0, 0));
 }
-"""
+""")
 
 """A shader that displays an image in green in Neuroglancer"""
-green_shader = """
+green_shader = Shader("""
 void main() {
-   emitRGB(vec3(0, %f * toNormalized(getDataValue()), 0));
+   emitRGB(vec3(0, brightness * toNormalized(getDataValue()), 0));
 }
-"""
+""")
 
 """A shader that displays an image in blue in Neuroglancer"""
-blue_shader = """
+blue_shader = Shader("""
 void main() {
-   emitRGB(vec3(0, 0, %f * toNormalized(getDataValue())));
+   emitRGB(vec3(0, 0, brightness * toNormalized(getDataValue())));
 }
-"""
+""")
 
 """A shader that displays an image using the classic Jet colormap"""
-jet_shader = """
+jet_shader = Shader("""
 
 void main() {
-  float x = clamp(toNormalized(getDataValue()) * %f, 0.0, 1.0);
+  float x = clamp(toNormalized(getDataValue()) * brightness, 0.0, 1.0);
   vec3 result;
   result.r = x < 0.89 ? ((x - 0.35) / 0.31) : (1.0 - (x - 0.89) / 0.11 * 0.5);
   result.g = x < 0.64 ? ((x - 0.125) * 4.0) : (1.0 - (x - 0.64) / 0.27);
   result.b = x < 0.34 ? (0.5 + x * 0.5 / 0.11) : (1.0 - (x - 0.34) / 0.31);
    emitRGB(result);
 }
-"""
+""")
 
 """A shader for the cubehelix color scheme
 """
@@ -56,9 +67,9 @@ void main() {
 # https://www.mrao.cam.ac.uk/~dag/CUBEHELIX/CubeHelix.m
 # published under the Unlicense: (http://unlicense.org/)
 #
-cubehelix_shader = """
+cubehelix_shader = Shader("""
 void main() {
-    float x = clamp(toNormalized(getDataValue()) * %f, 0.0, 1.0);
+    float x = clamp(toNormalized(getDataValue()) * brightness, 0.0, 1.0);
     float angle = 2.0 * 3.1415926 * (4.0 / 3.0 + x);
     float amp = x * (1.0 - x) / 2.0;
     vec3 result;
@@ -70,7 +81,7 @@ void main() {
     result = clamp(x + amp * result, 0.0, 1.0);
     emitRGB(result);
 }
-"""
+""")
 
 pointlayer_shader = """
 void main() {
