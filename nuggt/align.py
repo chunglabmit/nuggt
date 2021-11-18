@@ -12,6 +12,7 @@ import neuroglancer
 import numpy as np
 import os
 from scipy.ndimage import map_coordinates
+import sys
 import tifffile
 import time
 import tqdm
@@ -774,9 +775,9 @@ def main():
     if not args.no_launch:
         vp.launch_viewers()
     vp.print_viewers()
-    while True:
-        time.sleep(10)
-
+    print("Hit ctrl+D to exit")
+    while len(sys.stdin.read(1)) > 0:
+        time.sleep(.1)
 
 if __name__ == "__main__":
     main()
