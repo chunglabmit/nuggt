@@ -493,6 +493,22 @@ void main() {
             self.add_point(self.selection_index, rp, mp)
             self.clear()
             self.redo_stack.clear()
+        elif mp:
+            self.post_message(
+                self.reference_viewer,
+                self.EDIT,
+                "Please mark a point in the reference frame before SHIFT-D")
+        elif rp:
+            self.post_message(
+                self.moving_viewer,
+                self.EDIT,
+                "Please mark a point in the moving frame before SHIFT-D")
+        else:
+            self.post_message(
+                self.reference_viewer,
+                self.EDIT,
+                "Please mark points before SHIFT-D")
+
 
     def get_moving_edit_point(self):
         try:
