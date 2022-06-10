@@ -45,7 +45,8 @@ setup(
         'rescale-image-for-alignment=nuggt.rescale_image_for_alignment:main',
         'segmentation2stack=nuggt.segmentation2stack:main',
         'sitk-align=nuggt.sitk_align:main',
-        'yea-nay=nuggt.yea_nay:main'
+        'yea-nay=nuggt.yea_nay:main', 
+        'transpose-flip=nuggt.transpose_flip_original_image_script'
     ]},
     url="https://github.com/chunglabmit/nuggt",
     license="MIT",
