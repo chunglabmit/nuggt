@@ -102,7 +102,7 @@ def parse_args():
                         default=False)
     
     parser.add_argument("--x-index",
-                        help="The index of the x-coordinate output"
+                        help="The index of the x-coordinate the alignment"
                              " points matrix, e.g. \"0\" if the x and z "
                         "axes were transposed. Defaults to 2.",
                         type=int,
