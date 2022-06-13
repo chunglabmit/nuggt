@@ -126,6 +126,49 @@ whatever class it is in.
 * *control-q* - finish, writing the points to the "yea" and "nay" files as
 designated on the command-line.
 
+## transpose-flip
+
+**transpose-flip** is a command-line program that takes in an original image precomputed files
+  and does the necessary transformations whether it be flipping or transposing so that the original image orientation matches that 
+  of the original image. This is done before inputing the original image into **nuggt-align** in order to ease the annotation process.
+
+Run **transpose-flip** like this:
+```bash
+> transpose-flip --input-file-path <original-image-file-path> \
+              --dest <output-file-directory>
+              [--x-index] \
+              [--y-index] \
+              [--z-index] \
+              [--flip-x] \
+              [--flip-y] \
+              [--flip-z] \
+              [--levels ] \
+              [--input-levels ] \
+              [--n-cores]\
+              [--voxel-size]
+              
+```
+where:
+* **input-file-path** is the path to the original image directory containing .blockfs files
+* **dest** is the path to the destination directory for the volume.
+* **---x-index** the index of the x-coordinate in the alignment points matrix,
+                 e.g. "0" if the x and z  axes were transposed. Defaults to 2.
+* **---y-index** the index of the y-coordinate in the alignment points matrix,
+                 e.g. "0" if the y and z  axes were transposed. Defaults to 1.
+* **---z-index** the index of the z-coordinate in the alignment points matrix,
+                 e.g. "2" if the x and z  axes were transposed. Defaults to 0.
+* **--flip-x** this parameter indicates that the image should be flipped 
+                in the X direction after transposing and resizing.
+* **--flip-y** this parameter indicates that the image should be flipped 
+                in the Y direction after transposing and resizing.
+* **--flip-z** this parameter indicates that the image should be flipped 
+                in the Z direction after transposing and resizing.
+* **--levels**  the number of mipmap levels. The first level has the same resolution as the input. 
+                Each subsequent level has half the resolution as the previous level.
+* **--input-levels** the starting mipmap level of the original image.
+* **--n-cores**  the number of processes that will be used for parallel processing.
+* **--voxel-size**  is the voxel size in microns as three comma-separated values, 
+                    e.g. "1.8,1.8,2.0" in X, Y, Z order. The default is "1.8,1.8,2.0" which is the voxel size for 4x SPIM.
 ## nuggt-align
 
 Align images using Neuroglancer.
