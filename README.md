@@ -186,16 +186,26 @@ of your machine on the network.
 * **--port** the port number to bind to. The port number that the server
 binds to. By default, *nuggt-align* uses any available port.
 * **--reference-voxel-size** The size of a voxel in the reference image
-(in nanometers). The three sizes should be specified, separated by commas,
+(in nanometers). The three sizes should be specified, separated by commas(in X, Y, z order),
 e.g. "1000.0,1000.0,1000.0".
-* **--moving-voxel-size** The size of a voxel in the moving image
-(in nanometers). The three sizes should be specified, separated by commas,
+* **--moving-voxel-size** the size of a voxel in the moving image
+(in nanometers). The three sizes should be specified, separated by commas(in X, Y, z order),
 e.g. "1000.0,1000.0,1000.0".
-
-**nuggt-align** will print the URLs of the reference viewer and moving
-viewer on startup. These can be used to launch browser instances for
+* **--z-y-x-voxel** the size of a voxel in the original image
+(in micrometers). The three sizes should be specified, separated by a space(in z, Y, X order),
+e.g. 4 1.8 1.8.
+* **--min-distance** the minimum distance between any two annotations.
+* **--n-workers** the number of workers to be used during warping.
+* **--flip-x** this parameter indicates that the image should be flipped 
+                in the X direction after transposing and resizing.
+* **--flip-y** this parameter indicates that the image should be flipped 
+                in the Y direction after transposing and resizing.
+* **--flip-z** this parameter indicates that the image should be flipped 
+                in the Z direction after transposing and resizing.
+                                                                
+**nuggt-align** will print the URLs of the reference viewer, moving
+viewer and original viewer on startup. These can be used to launch browser instances for
 editing.
-
 **nuggt-align** works by maintaining a list of point annotations
 for each image in the *correspondence-points* annotation layer. It
 maintains one pair of points in the *edit* annotation layer. These are
