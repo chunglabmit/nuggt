@@ -51,7 +51,8 @@ def parse_args(args):
                         default=False)
 
     parser.add_argument("--dest",
-                            help="Destination directory for precomputed stack.")
+                            help="Destination directory for precomputed stack.", 
+                        required= True)
 
     parser.add_argument("--levels",
                         type=int,
