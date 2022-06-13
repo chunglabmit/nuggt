@@ -17,7 +17,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument('--input-file-path', help='path of input file', required= True)
     parser.add_argument("--x-index",
-                        help="The index of the x-coordinate output"
+                        help="The index of the x-coordinate in the alignment"
                              " points matrix, e.g. \"0\" if the x and z "
                         "axes were transposed. Defaults to 2.",
                         type=int,
