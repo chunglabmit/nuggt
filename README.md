@@ -193,7 +193,7 @@ e.g. "1000.0,1000.0,1000.0".
 e.g. "1000.0,1000.0,1000.0".
 * **--z-y-x-voxel** the size of a voxel in the original image
 (in micrometers). The three sizes should be specified, separated by a space(in z, Y, X order),
-e.g. 4 1.8 1.8.
+e.g. "4 1.8 1.8".
 * **--min-distance** the minimum distance between any two annotations.
 * **--n-workers** the number of workers to be used during warping.
 * **--flip-x** this parameter indicates that the image should be flipped 
@@ -202,6 +202,12 @@ e.g. 4 1.8 1.8.
                 in the Y direction after transposing and resizing.
 * **--flip-z** this parameter indicates that the image should be flipped 
                 in the Z direction after transposing and resizing.
+* **---x-index** the index of the x-coordinate in the alignment points matrix,
+                 e.g. "0" if the x and z  axes were transposed. Defaults to 2.
+* **---y-index** the index of the y-coordinate in the alignment points matrix,
+                 e.g. "0" if the y and z  axes were transposed. Defaults to 1.
+* **---z-index** the index of the z-coordinate in the alignment points matrix,
+                 e.g. "2" if the x and z  axes were transposed. Defaults to 0.
                                                                 
 **nuggt-align** will print the URLs of the reference viewer, moving
 viewer and original viewer on startup. These can be used to launch browser instances for
@@ -230,10 +236,12 @@ transform). You can place a point in the reference view, press *shift-t*, and
 then see and edit its location in the moving view to correct the warp.
 * *shift-w* - warp the moving layer's image to the reference layer using the
 point correspondences.
+* *shift-a* - make the reference image brighter.
+* *shift-x* - make the reference image dimmer.
 * *shift-equals (plus)* - make the moving image brighter.
 * *minus* - make the moving image dimmer.
-* *alt-shift-equals* - make the reference image brighter.
-* *alt-minus* - make the reference image dimmer.
+* *shift-i* - make the original image brighter.
+* *shift-l* - make the original image dimmer.
 
 ## SITK-ALIGN
 
