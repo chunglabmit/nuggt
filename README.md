@@ -130,22 +130,33 @@ designated on the command-line.
 
 Align images using Neuroglancer.
 
-**nuggt-align** is a command-line program that starts two neuroglancer
-instances, one for a *moving image* and one for a *reference image*. The
+**nuggt-align** is a command-line program that starts three neuroglancer
+instances, one for a *original image*, *moving image* and one for a *reference image*. The
 purpose of the program is to establish common points of reference in each
 image which can be used to warp the *moving image* onto the *reference image*.
 
 Run **nuggt-align** like this:
 ```bash
-> nuggt-align --moving-image <moving-image-file> \
-              --reference-image <reference-image-file> \
+> nuggt-align --reference-image <reference-image-file> \
+              --moving-image <moving-image-file> \
+              --original-image <original-image-neuroglanceer-url> \
               --segmentation <segmentation> \
-              --points <points-file> \
+              --moving-image-points <moving-image-points-file> \
+              --original-image-points <original-image-points-file> \
               [--no-launch] \
               [--ip-address <ip-address>] \
               [--port <port>] \
               [--reference-voxel-size <reference-voxel-size>] \
-              [--moving-voxel-size <moving-voxel-size]
+              [--moving-voxel-size <moving-voxel-size] \
+              [--z-y-x-voxel <original-voxel-size>] \
+              [--min-distance <minimium-distance-between-two-annotations>] \
+              [--n-workers <number-of-workers-used-for-warping] \
+              [--flip-x] \
+              [--flip-y] \
+              [--flip-z] \
+              [--x-index] \
+              [--y-index] \
+              [--z-index] \
 ```
 where:
 * **moving-image-file** is a 3D .tiff file containing the volume of the
