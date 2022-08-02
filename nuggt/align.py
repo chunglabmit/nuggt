@@ -38,11 +38,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Neuroglancer Aligner")
     parser.add_argument("--reference-image",
                         help="Path to reference image file",
-                        required=True)
+                        required=False)
     
     parser.add_argument("--moving-image",
                         help="Path to image file for image to be aligned",
-                        required=True)
+                        required=False)
     
   
     
@@ -53,7 +53,7 @@ def parse_args():
     
     parser.add_argument("--points",
                         help="Path to point-correspondence file for moving image",
-                        required=True)
+                        required=False)
     
     parser.add_argument("--no-launch",
                         help="Don't launch browsers on startup",
