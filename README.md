@@ -182,10 +182,10 @@ Run **nuggt-align** like this:
 ```bash
 > nuggt-align --reference-image <reference-image-file> \
               --moving-image <moving-image-file> \
-              --original-image <original-image-neuroglanceer-url> \
-              --segmentation <segmentation> \
-              --moving-image-points <moving-image-points-file> \
-              --original-image-points <original-image-points-file> \
+              [--original-image <original-image-neuroglanceer-url>] \
+              [--segmentation <segmentation>] \
+              --points <moving-image-points-file> \
+              [--original-image-points <original-image-points-file>] \
               [--no-launch] \
               [--ip-address <ip-address>] \
               [--port <port>] \
