@@ -18,6 +18,7 @@ import tifffile
 import time
 import tqdm
 import webbrowser
+import re
 
 from .utils.warp import Warper
 from .utils.ngutils import layer, seglayer, pointlayer
@@ -37,98 +38,129 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Neuroglancer Aligner")
     parser.add_argument("--reference-image",
                         help="Path to reference image file",
-                        required=True)
+                        required=False)
+    
     parser.add_argument("--moving-image",
                         help="Path to image file for image to be aligned",
-                        required=True)
+                        required=False)
+    
+  
+    
     parser.add_argument("--segmentation",
                         help="Path to the segmentation file accompanying "
                         "the reference image.",
-                        default=None)
-    parser.add_argument("--original-image",
-                        help=" the neuroglancer original image url",
-                        required=True)
-    parser.add_argument("--moving-image-points",
+                        default=None) 
+    
+    parser.add_argument("--points",
                         help="Path to point-correspondence file for moving image",
-                        required=True)
-    parser.add_argument("--original-image-points",
-                        help="Path to point-correspondence file for original image",
-                        required=True)
+                        required=False)
+    
     parser.add_argument("--no-launch",
                         help="Don't launch browsers on startup",
                         default="false",
                         action="store_true")
+        
     parser.add_argument("--ip-address",
                         help="IP address interface to use for http",
-                        default=None)
+                        default=None,
+                        required=False)
+    
+    parser.add_argument("--original-image", 
+                        help=" the neuroglancer original image url",
+                        default= "",
+                        required=False)
+    
     parser.add_argument("--port",
                         type=int,
                         default=None,
                         help="Port # for http. Default = let program choose")
+    
     parser.add_argument("--static-content-source",
                         default=None,
                         help="Obsolete - this no longer has any effect.")
+    
     parser.add_argument("--reference-voxel-size",
                         help="X, Y and Z size of voxels, separated by "
                         "commas, e.g. \"1.6,1.6,1.0\"",
-                        default="1.0,1.0,1.0")
+                        default="1.0,1.0,1.0",
+                       required=False)
+    
     parser.add_argument("--moving-voxel-size",
                         help="X, Y and Z size of voxels, separated by "
                         "commas, e.g. \"1.6,1.6,1.0\"",
-                        default="1.0,1.0,1.0")
+                        default="1.0,1.0,1.0",
+                       required=False)
+    
     parser.add_argument("--min-distance",
                         type=float,
                         default=1.0,
                         help="Minimum distance between any two annotations.")
+    
     parser.add_argument("--n-workers",
                         type=int,
-                        default=multiprocessing.cpu_count(),
+                        default= multiprocessing.cpu_count(),
+                        required=False,
                         help="# of workers to use during warping")
+    parser.add_argument("--original-image-points",
+                        help="Path to point-correspondence file for original image",
+                        default=None,
+                        required=False)
+    
     parser.add_argument("--flip-x",
                         help="Indicates that the image should be flipped "
                         "in the X direction after transposing and resizing.",
                         action="store_true",
-                        default=False)
+                        default=False,
+                       required=False)
+    
     parser.add_argument("--flip-y",
                         help="Indicates that the image should be flipped "
                         "in the y direction after transposing and resizing.",
                         action="store_true",
-                        default=False)
+                        default=False,
+                       required=False)
     
     parser.add_argument("--flip-z",
                         help="Indicates that the image should be flipped "
                         "in the z direction after transposing and resizing.",
                         action="store_true",
-                        default=False)
+                        default=False,
+                       required=False)
     
     parser.add_argument("--x-index",
                         help="The index of the x-coordinate in the alignment"
                              " points matrix, e.g. \"0\" if the x and z "
                         "axes were transposed. Defaults to 2.",
                         type=int,
-                        default=2)
+                        default=2,
+                       required=False)
+    
     parser.add_argument("--y-index",
                         help="The index of the y-coordinate in the alignment"
                              " points matrix, e.g. \"0\" if the y and z "
                         "axes were transposed. Defaults to 1.",
                         type=int,
-                        default=1)
+                        default=1,
+                       required=False)
+    
     parser.add_argument("--z-index",
                         help="The index of the z-coordinate in the alignment"
                              " points matrix, e.g. \"2\" if the x and z "
                         "axes were transposed. Defaults to 0.",
                         type=int,
-                        default=0)
+                        default=0,
+                       required=False)
+    
     parser.add_argument('--z-y-x-voxel', 
                         nargs= 3, 
                         help="The the size of a voxel in the original image in the z, y x   dimension in μm."
                         " The voxels must be entered in the z,y,x order "
-                        "e.g 4 1.8 1.8",
+                        "e.g 1.8 1.8 4",
                         type=float, 
-                        required=True)
+                        default= [1.8,1.8, 4],
+                        required=False)
     
     return parser.parse_args()
-
 
 class ViewerPair:
     """The viewer pair maintains two neuroglancer viewers
@@ -182,6 +214,7 @@ class ViewerPair:
     ORIGINAL_DIMMER_ACTION = "original-dimmer"
     
     REFRESH_ACTION = "refresh-view"
+    
     REDO_ACTION = "redo"
     SAVE_ACTION = "save-points"
     TRANSLATE_ACTION = "translate-point"
@@ -243,9 +276,11 @@ void main() {
     warpers = {}
     alignment_buffers = {}
 
-    def __init__(self, reference_image, moving_image, original_image, segmentation,
-                 points_file, reference_voxel_size, moving_voxel_size, original_voxel_size, points_file_original, 
-                 flip_x, flip_y, flip_z, z_y_x_voxel, x_index, y_index, z_index, n_workers=multiprocessing.cpu_count(), min_distance=1.0):
+    def __init__(self, reference_image, moving_image, segmentation,
+                 points_file, reference_voxel_size, moving_voxel_size,
+                 n_workers=multiprocessing.cpu_count(), min_distance=1.0,
+                original_image="", original_voxel_size=[1,1, 1], points_file_original=None, 
+                 flip_x=False, flip_y=False, flip_z=False, x_index=2, y_index=1,z_index=0,z_y_x_voxel=[1.8,1.8, 4]):
         
         """Constructor
 
@@ -298,7 +333,7 @@ void main() {
         self.x_index=x_index
         self.y_index=y_index
         self.z_index=z_index
-
+        
         self.z_y_x_voxel= z_y_x_voxel
         
     @property
@@ -320,15 +355,17 @@ void main() {
 
 
     def load_points_original(self):
-        """Load reference/moving points from the points file"""
-        if not os.path.exists(self.points_file_original):
-            self.reference_pts = []
-            self.original_pts = []
+        """Load reference/origina points from the points file"""
+        args=parse_args()
+        if args.original_image!="":
+            if not os.path.exists(self.points_file_original):
+                self.reference_pts = []
+                self.original_pts = []
 
-        else:
-            with open(self.points_file_original, "r") as fd:
-                d = json.load(fd)
-            self.original_pts = d[self.ORIGINAL]
+            else:
+                with open(self.points_file_original, "r") as fd:
+                    d = json.load(fd)
+                self.original_pts = d[self.ORIGINAL]
 
     def save_points(self):
         """Save reference / moving points to the points file"""
@@ -347,11 +384,13 @@ void main() {
             }, fd, indent= 2)
 
     def init_state(self):
+        args=parse_args()
         """Initialize each of the viewers' states"""
         self.init_actions(self.reference_viewer,
                           self.on_reference_annotate)
         self.init_actions(self.moving_viewer, self.on_moving_annotate)
-        self.init_actions(self.original_viewer, self.on_original_annotate)
+        if args.original_image!="":
+            self.init_actions(self.original_viewer, self.on_original_annotate)
         self.undo_stack = []
         self.redo_stack = []
         self.selection_index = len(self.reference_pts)
@@ -381,22 +420,8 @@ void main() {
         :param viewer: the reference or moving viewer
         :param on_edit: the function to execute when the user wants to edit
         """
-        #ADD
+      
         viewer.actions.add(self.ANNOTATE_ACTION, on_annotate)
-        '''
-        if viewer==self.original_viewer:
-            viewer.actions.add(self.BRIGHTER_ACTION, self.on_original_brighter)
-            viewer.actions.add(self.ORIGINAL_DIMMER_ACTION, self.on_original_dimmer)
-            
-        elif viewer==self.moving_viewer:
-            viewer.actions.add(self.BRIGHTER_ACTION, self.on_brighter)
-            viewer.actions.add(self.DIMMER_ACTION, self.on_dimmer)
-        
-        elif viewer==self.reference_viewer:
-            viewer.actions.add(self.REFERENCE_BRIGHTER_ACTION,
-                           self.on_reference_brighter)
-            viewer.actions.add(self.REFERENCE_DIMMER_ACTION,self.on_reference_dimmer)
-         '''   
             
         viewer.actions.add(self.BRIGHTER_ACTION, self.on_brighter)
     
@@ -408,10 +433,10 @@ void main() {
         viewer.actions.add(self.NEXT_ACTION, self.on_next)
         viewer.actions.add(self.PREVIOUS_ACTION, self.on_previous)
         
-        #ADD
+      
         viewer.actions.add(self.REFERENCE_BRIGHTER_ACTION, self.on_reference_brighter)
         viewer.actions.add(self.REFERENCE_DIMMER_ACTION,self.on_reference_dimmer) 
-        # ADD
+     
         viewer.actions.add(self.ORIGINAL_BRIGHTER_ACTION, self.on_original_brighter)
         viewer.actions.add(self.ORIGINAL_DIMMER_ACTION, self.on_original_dimmer)
         
@@ -477,6 +502,7 @@ void main() {
             txn.layers[self.EDIT] = layer
 
     def post_message(self, viewer, kind, msg):
+        args=parse_args()
         """Post a message to a viewer
 
         :param viewer: the reference or moving viewer
@@ -486,7 +512,8 @@ void main() {
         if viewer is None:
             self.post_message(self.reference_viewer, kind, msg)
             self.post_message(self.moving_viewer, kind, msg)
-            self.post_message(self.original_viewer, kind, msg)
+            if  args.original_image!="":
+                self.post_message(self.original_viewer, kind, msg)
         else:
             with viewer.config_state.txn() as cs:
                 cs.status_messages[kind] = msg
@@ -495,8 +522,8 @@ void main() {
         ar = ArrayReader(self.original_image)
         self.shape_zs_ys_xs= self.moving_image.shape
         self.z_voxel= self.z_y_x_voxel[self.z_index]
-        self.y_voxel=self.z_y_x_voxel[self.y_index]
-        self.x_voxel=self.z_y_x_voxel[self.x_index]
+        self.y_voxel= self.z_y_x_voxel[self.y_index]
+        self.x_voxel= self.z_y_x_voxel[self.x_index]
         self.original_zo_yo_xo = [ar.shape[self.z_index]*self.z_voxel, ar.shape[self.y_index]*self.y_voxel,ar.shape[self.x_index]*self.x_voxel]
         self.original_zo_yo_xo_1 = [ar.shape[self.z_index], ar.shape[self.y_index],ar.shape[self.x_index]]
         
@@ -548,7 +575,7 @@ void main() {
 
 
     def on_moving_annotate(self, s):
-        
+        args = parse_args()
     
         """Handle an edit in the moving viewer
 
@@ -573,17 +600,18 @@ void main() {
                 points=[point.tolist()],
                 annotation_color=self.EDIT_ANNOTATION_COLOR)
             txn.layers[self.EDIT] = layer
-            
-        self.rp = self.get_reference_edit_point()
-        self.mp =self.get_moving_edit_point() 
-        point= self.moving_to_original()
-        with self.original_viewer.txn() as txn:
-            layer = pointlayer(txn, self.EDIT, [point[0]],[point[1]], [point[2]], 
-               color=self.EDIT_ANNOTATION_COLOR,
-               voxel_size=[1, 1, 1])
+        
+        if args.original_image != "":
+            self.rp = self.get_reference_edit_point()
+            self.mp =self.get_moving_edit_point()
+            point= self.moving_to_original()
+            with self.original_viewer.txn() as txn:
+                layer = pointlayer(txn, self.EDIT, [point[0]],[point[1]], [point[2]],
+                                   color=self.EDIT_ANNOTATION_COLOR, 
+                                   voxel_size=[1, 1, 1])
 
     def on_original_annotate(self, s):
-        """Handle an edit in the moving viewer
+        """Handle an edit in the original viewer
 
         :param s: the current state
         """
@@ -609,6 +637,7 @@ void main() {
         
         self.op = self.get_original_edit_point()
         point= self.original_to_moving()
+        
         with self.moving_viewer.txn() as txn:
             layer = pointlayer(txn, self.EDIT, [point[0]],[point[1]], [point[2]], 
                color=self.EDIT_ANNOTATION_COLOR)
@@ -662,6 +691,7 @@ void main() {
         self.clear()
 
     def clear(self):
+        args=parse_args()
         """Clear the edit annotation from the UI"""
         with self.reference_viewer.txn() as txn:
             txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
@@ -669,11 +699,13 @@ void main() {
         with self.moving_viewer.txn() as txn:
             txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
                 annotation_color=self.EDIT_ANNOTATION_COLOR)
-        with self.moving_viewer.txn() as txn:
-            txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
-                annotation_color=self.EDIT_ANNOTATION_COLOR)
+        if args.original_image!="":
+            with self.original_viewer.txn() as txn:
+                txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
+                    annotation_color=self.EDIT_ANNOTATION_COLOR)
 
     def refresh_brightness(self):
+        args=parse_args()
         max_reference_img = soft_max_brightness(self.reference_image)
         if self.reference_image.dtype.kind in ("i", "u"):
             max_reference_img /= np.iinfo(self.reference_image.dtype).max
@@ -694,8 +726,9 @@ void main() {
         with self.moving_viewer.txn() as txn:
             txn.layers[self.IMAGE].layer.shader = \
                 gray_shader % (self.moving_brightness / max_moving_img)
-        with self.original_viewer.txn() as txn:
-            txn.layers[self.IMAGE].layer.shader = \
+        if args.original_image!="":
+            with self.original_viewer.txn() as txn:
+                txn.layers[self.IMAGE].layer.shader = \
                 gray_shader % (self.original_brightness * 40.0)
 
 
@@ -711,7 +744,12 @@ void main() {
             self.redo_stack.clear()
 
     def edit_point(self, idx, add_to_undo=True):
-        reference, moving, original= self.remove_point(idx, add_to_undo)
+        args=parse_args()
+        if args.original_image!="":
+            reference, moving, original= self.remove_point(idx, add_to_undo)
+        else: 
+            reference, moving= self.remove_point(idx, add_to_undo)
+            
         with self.reference_viewer.txn() as txn:
             pointlayer(
                 txn, self.EDIT,
@@ -726,15 +764,15 @@ void main() {
                 color=self.EDIT_ANNOTATION_COLOR,
                 voxel_size=self.moving_voxel_size)
             txn.position = moving[::-1]
-       
-
-        with self.original_viewer.txn() as txn:
-            pointlayer(
-            txn, self.EDIT,
-            [original[0]], [original[1]], [original[2]],
-            color=self.EDIT_ANNOTATION_COLOR,
-            voxel_size=self.original_voxel_size)
-            txn.position = original[::-1]
+            
+        if args.original_image!="":
+            with self.original_viewer.txn() as txn:
+                pointlayer(
+                txn, self.EDIT,
+                [original[0]], [original[1]], [original[2]],
+                color=self.EDIT_ANNOTATION_COLOR,
+                voxel_size=self.original_voxel_size)
+                txn.position = original[::-1]
 
 
     def on_next(self, s):
@@ -757,14 +795,21 @@ void main() {
             self.redo_stack.clear()
 
     def on_done(self, s):
+        args= parse_args()
         """Handle editing done"""
         self.rp = self.get_reference_edit_point()
         self.mp = self.get_moving_edit_point()
-        self.op = self.get_original_edit_point()
-        if self.mp and self.rp:
+            
+        if self.mp and self.rp and args.original_image!="":
+            self.op = self.get_original_edit_point()
             self.add_point(self.selection_index, self.rp, self.mp, self.op )
             self.clear()
             self.redo_stack.clear()
+        elif self.mp and self.rp: 
+            self.add_point(self.selection_index, self.rp, self.mp)
+            self.clear()
+            self.redo_stack.clear()
+            
 
     def get_moving_edit_point(self):
         try:
@@ -816,7 +861,7 @@ void main() {
                 tuple(points)[::-1])
         return points
 
-    def add_point(self, idx, reference_point, moving_point, original_point, add_to_undo=True):
+    def add_point(self, idx, reference_point, moving_point, original_point=False, add_to_undo=True):
         """Add a point to the reference and moving points list
 
         :param idx: where to add the point
@@ -835,8 +880,9 @@ void main() {
         self.post_message(self.moving_viewer, self.EDIT,
                           "Added point at %d, %d, %d" %
                           tuple(moving_point[::-1]))
-        self.original_pts.insert(idx, original_point)
-        self.post_message(self.original_viewer, self.EDIT,
+        if original_point !=False:
+            self.original_pts.insert(idx, original_point)
+            self.post_message(self.original_viewer, self.EDIT,
                           "Added point at %d, %d, %d" %
                           tuple(original_point[::-1]))
         entry = (self.edit_point, (idx, not add_to_undo))
@@ -848,6 +894,7 @@ void main() {
 
 
     def remove_point(self, idx, add_to_undo=True):
+        args=parse_args()
         """Remove the point at the given index
 
         :param idx: the index into the reference_pts and moving_pts array
@@ -863,31 +910,43 @@ void main() {
         self.post_message(self.moving_viewer, self.EDIT,
                           "removed point %d at %d, %d, %d" %
                           tuple([idx] + list(moving_point[::-1])))
-        original_point = self.original_pts.pop(idx)
-        self.post_message(self.original_viewer, self.EDIT,
+        if args.original_image!="":
+            original_point = self.original_pts.pop(idx)
+            self.post_message(self.original_viewer, self.EDIT,
                           "removed point %d at %d, %d, %d" %
                           tuple([idx] + list(original_point[::-1])))
-        entry = (self.add_point, (idx, reference_point, moving_point, original_point,
+            entry = (self.add_point, (idx, reference_point, moving_point, original_point,
                                   not add_to_undo))
+        else: 
+            entry = (self.add_point, (idx, reference_point, moving_point,
+                                  not add_to_undo)) 
+        
         if add_to_undo:
             self.undo_stack.append(entry)
         else:
             self.redo_stack.append(entry)
         self.update_after_edit()
-        return reference_point, moving_point,original_point
+        try:
+            return reference_point, moving_point,original_point
+        except: 
+            return reference_point, moving_point
 
     def update_after_edit(self):
-        for viewer, points, voxel_size in ((self.reference_viewer,
+        args = parse_args()
+        viewer_points_voxelsize=((self.reference_viewer,
                                             self.annotation_reference_pts,
                                             self.reference_voxel_size),
                                            (self.moving_viewer,
                                             self.annotation_moving_pts,
                                             self.moving_voxel_size),
-                                           (self.original_viewer,
+                                           )
+            
+        if args.original_image != "":
+            viewer_points_voxelsize= viewer_points_voxelsize +((self.original_viewer,
                                             self.annotation_original_pts,
-                                            self.original_voxel_size)
-                                           ):
-
+                                            self.original_voxel_size),)
+        
+        for viewer, points, voxel_size in viewer_points_voxelsize:
             points = np.array(points, dtype=np.float32)
             if len(points) == 0:
                 points = points.reshape(0, 3)
@@ -903,6 +962,7 @@ void main() {
     def on_refresh(self, s):
         self.refresh()
     def refresh(self):
+        args=parse_args()
         """Refresh both views"""
         with self.moving_viewer.txn() as s:
             s.dimensions = neuroglancer.CoordinateSpace(
@@ -925,16 +985,15 @@ void main() {
                   voxel_size=self.moving_voxel_size)
             if self.segmentation is not None:
                 seglayer(s, self.SEGMENTATION, self.segmentation)
-
-      
-            with self.original_viewer.txn() as s:
-                s.dimensions = neuroglancer.CoordinateSpace(
-                    names=["x", "y", "z"],
-                    units=["µm"],
-                    scales=self.original_voxel_size)
-                layer(s, self.IMAGE, self.original_image, gray_shader,
-                      self.original_brightness,
-                      voxel_size=self.original_voxel_size)
+            if args.original_image!="":
+                with self.original_viewer.txn() as s:
+                    s.dimensions = neuroglancer.CoordinateSpace(
+                        names=["x", "y", "z"],
+                        units=["µm"],
+                        scales=self.original_voxel_size)
+                    layer(s, self.IMAGE, self.original_image, gray_shader,
+                          self.original_brightness,
+                          voxel_size=self.original_voxel_size)
 
     def on_undo(self, s):
         """Undo the last operation"""
@@ -954,31 +1013,37 @@ void main() {
 
 
     def on_translate(self, s):
+        args=parse_args()
         """Translate the editing coordinate in the reference frame to moving"""
         rp = self.get_reference_edit_point()
         if self.warper != None and rp:
             self.mp = self.warper(np.atleast_2d(rp))[0]
-            op = self.moving_to_original()
             with self.moving_viewer.txn() as txn:
                 txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
                     points=[self.mp[::-1]],
                     annotation_color=self.EDIT_ANNOTATION_COLOR)
                 txn.position = self.mp[::-1]
-            with self.original_viewer.txn() as txn:
-                txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
-                    points=[op[::-1]],
-                    annotation_color=self.EDIT_ANNOTATION_COLOR)
-                txn.position = op[::-1]
+            if args.original_image!="":
+                op = self.moving_to_original()
+                with self.original_viewer.txn() as txn:
+                    txn.layers[self.EDIT] = neuroglancer.PointAnnotationLayer(
+                        points=[op[::-1]],
+                        annotation_color=self.EDIT_ANNOTATION_COLOR)
+                    txn.position = op[::-1]
 
 
     def on_save(self, s):
+        args=parse_args()
         """Handle a point-save action
 
         :param s: the current state of whatever viewer
         """
         self.save_points()
-        self.save_points_original()
-        for viewer in (self.reference_viewer, self.moving_viewer, self.original_viewer):
+        viewers= (self.reference_viewer, self.moving_viewer)
+        if args.original_image!="":
+            self.save_points_original()
+            viewers= viewers+((self.original_viewer),)
+        for viewer in viewers:
             self.post_message(viewer, self.EDIT, "Saved point state")
 
     def on_warp(self, s):
@@ -1025,17 +1090,21 @@ void main() {
                 future.get()
 
     def print_viewers(self):
+        args=parse_args()
         """Print the URLs of the viewers to the console"""
         print("Reference viewer: %s" % repr(self.reference_viewer))
         print("Moving viewer: %s" % repr(self.moving_viewer))
-        print("Original viewer: %s" % repr(self.original_viewer))
+        if args.original_image!="":
+            print("Original viewer: %s" % repr(self.original_viewer))
 
 
     def launch_viewers(self):
+        args=parse_args()
         """Launch webpages for each of the viewers"""
         webbrowser.open_new(self.reference_viewer.get_viewer_url())
         webbrowser.open_new(self.moving_viewer.get_viewer_url())
-        webbrowser.open_new(self.original_viewer.get_viewer_url())
+        if args.original_image!="":
+            webbrowser.open_new(self.original_viewer.get_viewer_url())
 
 
 
@@ -1075,8 +1144,10 @@ def main():
     reference_image = tifffile.imread(args.reference_image).astype(np.float32)
     logging.info("Reading moving image")
     moving_image = tifffile.imread(args.moving_image).astype(np.float32)
-    logging.info("Reading original image")
-    original_image = (args.original_image)
+    
+    if args.original_image!="":
+        logging.info("Reading original image")
+        original_image = (args.original_image)
 
     if args.segmentation is not None:
         logging.info("Reading segmentation")
@@ -1084,9 +1155,9 @@ def main():
     else:
         segmentation = None
 
-
-    vp = ViewerPair(reference_image, moving_image, original_image,segmentation, args.moving_image_points,reference_voxel_size, moving_voxel_size, original_voxel_size, args.original_image_points, n_workers=args.n_workers, flip_x=args.flip_x, flip_y=args.flip_y, flip_z=args.flip_z, z_y_x_voxel=args.z_y_x_voxel, x_index=args.x_index, y_index=args.y_index, z_index=args.z_index)
-
+    vp = ViewerPair(reference_image, moving_image, segmentation, args.points,
+                    reference_voxel_size, moving_voxel_size, n_workers=args.n_workers, original_image=args.original_image, original_voxel_size=original_voxel_size, points_file_original=args.original_image_points, flip_x=args.flip_x, flip_y=args.flip_y, flip_z=args.flip_z,z_y_x_voxel=args.z_y_x_voxel, x_index=args.x_index, y_index=args.y_index, z_index=args.z_index)
+    
     if not args.no_launch:
         vp.launch_viewers()
     vp.print_viewers()
