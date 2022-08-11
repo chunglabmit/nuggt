@@ -130,7 +130,7 @@ designated on the command-line.
 
 **transpose-flip** is a command-line program that takes in an original image precomputed files
   and does the necessary transformations whether it be flipping or transposing so that the original image orientation matches that 
-  of the original image. This is done before inputing the original image into **nuggt-align** in order to ease the annotation process.
+  of the moving image. This is done before inputing the original image into **nuggt-align** in order to ease the annotation process.
 
 Run **transpose-flip** like this:
 ```bash
