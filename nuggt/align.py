@@ -1078,7 +1078,7 @@ void main() {
             for _ in range(3)]
         self.warper = self.warper.approximate(*inputs)
         self.warpers[id(self)] = self.warper
-        with multiprocessing.Pool(48) as pool:
+        with multiprocessing.Pool(self.n_workers) as pool:
             futures = []
             for z0 in range(0, self.reference_image.shape[0]):
                 z1 = z0 + 1
